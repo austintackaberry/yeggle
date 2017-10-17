@@ -1,5 +1,5 @@
 {
   "scripts": {
-    "start": "cd react-backend && npm install"
+    "start": "cd react-backend && npm install && npm start"
   }
 }
