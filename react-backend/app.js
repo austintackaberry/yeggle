@@ -41,7 +41,7 @@ app.post('/yelpreq', function(req, res) {
     });
   })
 });
-app.listen(3001);
+app.listen(process.env.PORT || 3001);
 console.log('listening on 3001');
 // app.use('/', index);
 // app.use('/users', users);
