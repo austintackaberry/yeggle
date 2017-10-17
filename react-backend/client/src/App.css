@@ -45,3 +45,18 @@
 *, *:after, *:before {
   box-sizing: border-box;
 }
+
+.yelp-places {
+  border: 1px solid #222;
+  margin-left: 2%;
+  margin-right: 2%;
+  margin-bottom: 2%;
+  height: 230px;
+}
+.google-places {
+  margin-left: 2%;
+  margin-right: 2%;
+  margin-bottom: 2%;
+  border: 1px solid #222;
+  height: 230px;
+}
