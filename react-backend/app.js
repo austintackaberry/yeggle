@@ -6,8 +6,6 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var yelp = require('yelp-fusion');
 
-
-
 var index = require('./routes/index');
 var users = require('./routes/users');
 
@@ -31,7 +29,7 @@ if (process.env.NODE_ENV === "production") {
 
 app.post('/yelpreq', function(req, res) {
   var searchTerms = JSON.parse(req.body);
-  yelp.accessToken(clientId, clientSecret).then(resp => {
+  yelp.accessToken(process.env.clientId, process.env.clientSecret).then(resp => {
     const client = yelp.client(resp.jsonBody.access_token);
     client.search(searchTerms).then(response => {
       console.log(response.jsonBody);
