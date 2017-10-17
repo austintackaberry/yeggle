@@ -25,6 +25,10 @@ app.use(bodyParser.text());
 // app.use(cookieParser());
 // app.use(express.static(path.join(__dirname, 'public')));
 
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static('client/build'));
+}
+
 app.post('/yelpreq', function(req, res) {
   var searchTerms = JSON.parse(req.body);
   yelp.accessToken(clientId, clientSecret).then(resp => {
