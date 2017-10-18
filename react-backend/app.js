@@ -26,18 +26,19 @@ app.use(bodyParser.text());
 if (process.env.NODE_ENV === "production") {
   app.use(express.static('client/build'));
 }
-
 app.post('/yelpreq', function(req, res) {
+  console.log('received request');
   var searchTerms = JSON.parse(req.body);
-  yelp.accessToken(process.env.clientId, process.env.clientSecret).then(resp => {
+  yelp.accessToken(process.env.YELP_CLIENT_ID, process.env.YELP_CLIENT_SECRET).then(resp => {
     const client = yelp.client(resp.jsonBody.access_token);
     client.search(searchTerms).then(response => {
-      console.log(response.jsonBody);
       res.send(response.jsonBody);
     }).catch(e => {
       console.log(e);
     });
-  })
+  }).catch(e => {
+    console.log(e);
+  });
 });
 app.listen(process.env.PORT || 3001);
 console.log('listening on 3001');

@@ -162,6 +162,8 @@ class App extends Component {
               return b.rating - a.rating;
             });
           this.setState({googlePlaces:googlePlaces, yelpPlaces:yelpPlaces});
+          }).catch(e => {
+            console.log(e);
           });
         }
         callback();
