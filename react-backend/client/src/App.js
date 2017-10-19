@@ -21,11 +21,40 @@ function deg2rad(deg) {
   return deg * (Math.PI/180)
 }
 
+function formatResults(googlePlacesFormatted, bounds, googlePlaces) {
+  for (var i = 0; i < googlePlaces.length && googlePlacesFormatted.length < 20; i++) {
+    if (googlePlaces[i].geometry.location.lat > bounds.lat.min && googlePlaces[i].geometry.location.lat < bounds.lat.max && googlePlaces[i].geometry.location.lng > bounds.lon.min && googlePlaces[i].geometry.location.lng < bounds.lon.max) {
+      var priceLevel = '$'.repeat(googlePlaces[i].price_level);
+      var currStatus;
+      if (googlePlaces[i].opening_hours !== undefined) {
+        if (googlePlaces[i].opening_hours.open_now) {
+          currStatus = 'Open now'
+        }
+        else {
+          currStatus = 'Closed now'
+        }
+      }
+      var address = googlePlaces[i].vicinity;
+      var place = {
+        name: googlePlaces[i].name,
+        location: googlePlaces[i].geometry.location,
+        address: address,
+        rating: googlePlaces[i].rating,
+        priceLevel: priceLevel,
+        currStatus: currStatus,
+        url: 'https://www.google.com/maps/search/?api=1&query=Google&query_place_id=' + googlePlaces[i].place_id
+      };
+      googlePlacesFormatted.push(place);
+    }
+  }
+  return googlePlacesFormatted;
+}
+
 class App extends Component {
   constructor() {
     super();
     this.state = {
-      places: "",
+      googlePlacesFormatted: [],
       yelpPlaces: []
     }
     this.markers = [];
@@ -67,13 +96,31 @@ class App extends Component {
   }
 
   handleSubmit(event) {
-    var yelpPlaces = [];
-    var places;
-    var googlePlaces = [];
+    event.preventDefault();
     this.searchBox.setBounds(this.state.map.getBounds());
     this.setState({
       searchBounds:this.state.map.getBounds()
     });
+    var bounds = {
+      lat: {
+        min: this.state.searchBounds.f.b,
+        max: this.state.searchBounds.f.f,
+      },
+      lon: {
+        min: this.state.searchBounds.b.b,
+        max: this.state.searchBounds.b.f,
+      },
+    };
+    var yelpPlaces = [];
+    var googlePlaces = [];
+    var googlePlacesFormatted = [];
+    var latLon;
+    var diagMeters;
+    latLon = this.state.searchBounds;
+    diagMeters = getDistanceFromLatLonInM(latLon.f.b, latLon.b.b, latLon.f.f, latLon.b.f);
+    if (diagMeters > 75000) {
+      diagMeters = 75000;
+    }
     const google = window.google;
     var map = this.state.map;
     this.markers.forEach(function(marker) {
@@ -82,60 +129,19 @@ class App extends Component {
     this.markers = [];
     async.series([
       (callback) => {
-        this.places = this.searchBox.getPlaces();
-        if (this.places !== undefined && this.places !== null) {
-          places = [].slice.call(this.places).sort(function(a, b) {
-            return b.rating - a.rating;
-          });
-          for (var i = 0; i < places.length; i++) {
-            var priceLevel = '$'.repeat(places[i].price_level);
-            var currStatus;
-            if (places[i].opening_hours.open_now) {
-              currStatus = 'Open now'
-            }
-            else {
-              currStatus = 'Closed now'
-            }
-            var location = places[i].formatted_address.split(',').slice(0,-1).join(',');
-            var place = {
-              name: places[i].name,
-              location: location,
-              rating: places[i].rating,
-              priceLevel: priceLevel,
-              currStatus: currStatus,
-              url: 'https://www.google.com/maps/search/?api=1&query=Google&query_place_id=' + places[i].place_id
-            };
-            googlePlaces.push(place);
-          }
-          var latLon = this.state.searchBounds;
-          var diagMeters = getDistanceFromLatLonInM(latLon.f.b, latLon.b.b, latLon.f.f, latLon.b.f);
-          if (diagMeters > 75000) {
-            diagMeters = 75000;
-          }
-          var paramJSON = {
+          var paramYelpJSON = {
             term: this.searchBoxEl.value,
             latitude: (latLon.f.b + latLon.f.f) / 2.0,
             longitude: (latLon.b.b + latLon.b.f) / 2.0,
             radius: Math.floor(diagMeters / 2.0)
           }
-          fetch('/yelpreq', {
+          fetch('/yelpsearch', {
             method: 'POST',
-            body: JSON.stringify(paramJSON)
+            body: JSON.stringify(paramYelpJSON)
           })
           .then(res => res.json())
           .then(data => {
             var businessArr = data.businesses;
-            var bounds = {
-              lat: {
-                min: this.state.searchBounds.f.b,
-                max: this.state.searchBounds.f.f,
-              },
-              lon: {
-                min: this.state.searchBounds.b.b,
-                max: this.state.searchBounds.b.f,
-              },
-            };
-
             for (var i = 0; i < businessArr.length; i++) {
               if (businessArr[i].coordinates.latitude > bounds.lat.min && businessArr[i].coordinates.latitude < bounds.lat.max && businessArr[i].coordinates.longitude > bounds.lon.min && businessArr[i].coordinates.longitude < bounds.lon.max) {
                 var business = {
@@ -161,45 +167,92 @@ class App extends Component {
               }
               return b.rating - a.rating;
             });
-          this.setState({googlePlaces:googlePlaces, yelpPlaces:yelpPlaces});
+            callback();
           }).catch(e => {
             console.log(e);
           });
-        }
-        callback();
-      },
-      (callback) => {
-        if (map !== undefined && this.places !== undefined) {
-          this.places.forEach((place) => {
-            this.markers.push(new google.maps.Marker({
-              map: map,
-              title: place.name,
-              position: place.geometry.location
-            }));
+        },
+        (callback) => {
+          var latitude = (latLon.f.b + latLon.f.f) / 2.0;
+          var longitude = (latLon.b.b + latLon.b.f) / 2.0;
+          var paramGoogleJSON = {
+            keyword: this.searchBoxEl.value,
+            location: latitude.toString() + "," + longitude.toString(),
+            radius: Math.floor(diagMeters / 2.0),
+          };
+          fetch('/googlesearch', {
+            method: 'POST',
+            body: JSON.stringify(paramGoogleJSON)
+          })
+          .then(res => res.json())
+          .then(data => {
+            var googlePlaces = data.results;
+            googlePlacesFormatted = formatResults(googlePlacesFormatted,bounds,googlePlaces);
+            paramGoogleJSON.pagetoken = data.next_page_token;
+            if (googlePlacesFormatted.length < 15) {
+              setTimeout( function() {
+                fetch('/googlesearch', {
+                  method: 'POST',
+                  body: JSON.stringify(paramGoogleJSON)
+                })
+                .then(res1 => res1.json())
+                .then(data1 => {
+                  googlePlaces = data1.results;
+                  googlePlacesFormatted = formatResults(googlePlacesFormatted,bounds,googlePlaces);
+                  paramGoogleJSON.pagetoken = data1.next_page_token;
+                  callback();
+                })
+              }.bind(this), 1600);
+            }
+            else {
+              this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlaces:yelpPlaces});
+              callback();
+            }
           });
+        },
+        (callback) => {
+          googlePlacesFormatted = googlePlacesFormatted.sort(function(a, b) {
+            return b.rating - a.rating;
+          });
+          if (this.state.map !== undefined) {
+            googlePlacesFormatted.forEach((place) => {
+              var placeMarker = new google.maps.Marker({
+                map: map,
+                title: place.name,
+                position: place.location
+              });
+              placeMarker.info = new google.maps.InfoWindow({
+                content: 'Rating: ' + place.rating
+              });
+              google.maps.event.addListener(placeMarker, 'click', function() {
+                if (placeMarker.info) {placeMarker.info.close()}
+                placeMarker.info.open(map, placeMarker);
+              });
+              this.markers.push(placeMarker);
+            });
+          }
+          this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlaces:yelpPlaces});
+          callback();
         }
-        callback();
-      }
     ]);
-    event.preventDefault();
   }
 
   render() {
     var googlePlacesJSX = [];
     var yelpPlacesJSX = [];
-    if (this.state.googlePlaces !== undefined && this.state.googlePlaces !== null) {
-      var googlePlaces = this.state.googlePlaces
+    if (this.state.googlePlacesFormatted !== undefined && this.state.googlePlacesFormatted !== null) {
+      var googlePlacesFormatted = this.state.googlePlacesFormatted;
       var yelpPlaces = this.state.yelpPlaces;
       var i = 0;
-      while (i < Math.max(googlePlaces.length, yelpPlaces.length)) {
-        if (i < googlePlaces.length) {
+      while (i < Math.max(googlePlacesFormatted.length, yelpPlaces.length)) {
+        if (i < googlePlacesFormatted.length) {
           googlePlacesJSX.push(
             <div className="google-places">
-              <h4><a href={googlePlaces[i].url} target="_blank">{googlePlaces[i].name}</a></h4>
-              <p>{googlePlaces[i].location}</p>
-              <p>{googlePlaces[i].currStatus}</p>
-              <p>{googlePlaces[i].priceLevel}</p>
-              <p>{googlePlaces[i].rating} stars</p>
+              <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
+              <p>{googlePlacesFormatted[i].address}</p>
+              <p>{googlePlacesFormatted[i].currStatus}</p>
+              <p>{googlePlacesFormatted[i].priceLevel}</p>
+              <p>{googlePlacesFormatted[i].rating} stars</p>
             </div>
           );
         }

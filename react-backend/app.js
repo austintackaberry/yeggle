@@ -5,6 +5,7 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var yelp = require('yelp-fusion');
+var fetch = require('node-fetch');
 
 var index = require('./routes/index');
 var users = require('./routes/users');
@@ -26,17 +27,38 @@ app.use(bodyParser.text());
 if (process.env.NODE_ENV === "production") {
   app.use(express.static('client/build'));
 }
-app.post('/yelpreq', function(req, res) {
-  console.log('received request');
-  var searchTerms = JSON.parse(req.body);
+app.post('/yelpsearch', function(req, res) {
+  console.log('yelp search received request');
+  var yelpSearchTerms = JSON.parse(req.body);
   yelp.accessToken(process.env.YELP_CLIENT_ID, process.env.YELP_CLIENT_SECRET).then(resp => {
     const client = yelp.client(resp.jsonBody.access_token);
-    client.search(searchTerms).then(response => {
+    client.search(yelpSearchTerms).then(response => {
       res.send(response.jsonBody);
     }).catch(e => {
       console.log(e);
     });
   }).catch(e => {
+    console.log(e);
+  });
+});
+app.post('/googlesearch', function(req, res) {
+  console.log('google search received request');
+  var googleSearchTerms = JSON.parse(req.body);
+  var url = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=' + process.env.GOOGLE_API_KEY + '&location=' + googleSearchTerms.location + '&radius=' + googleSearchTerms.radius + '&keyword=' + googleSearchTerms.keyword;
+  if ('pagetoken' in googleSearchTerms) {
+    url += '&pagetoken=' + googleSearchTerms.pagetoken;
+  }
+  fetch(url, {
+    method: 'GET'
+  })
+  .then(res => res.json())
+  .catch(e => {
+    console.log(e);
+  })
+  .then(data => {
+    res.send(data);
+  })
+  .catch(e => {
     console.log(e);
   });
 });
