@@ -21,7 +21,7 @@ function deg2rad(deg) {
   return deg * (Math.PI/180)
 }
 
-function formatResults(googlePlacesFormatted, bounds, googlePlaces) {
+function formatGoogleResults(googlePlacesFormatted, bounds, googlePlaces) {
   for (var i = 0; i < googlePlaces.length && googlePlacesFormatted.length < 20; i++) {
     if (googlePlaces[i].geometry.location.lat > bounds.lat.min && googlePlaces[i].geometry.location.lat < bounds.lat.max && googlePlaces[i].geometry.location.lng > bounds.lon.min && googlePlaces[i].geometry.location.lng < bounds.lon.max) {
       var priceLevel = '$'.repeat(googlePlaces[i].price_level);
@@ -55,7 +55,8 @@ class App extends Component {
     super();
     this.state = {
       googlePlacesFormatted: [],
-      yelpPlaces: []
+      yelpPlacesFormatted: [],
+      bothPlacesFormatted: []
     }
     this.markers = [];
     this.initMap = this.initMap.bind(this);
@@ -79,6 +80,24 @@ class App extends Component {
     });
     this.setState({map:map});
     this.searchBox = new google.maps.places.SearchBox(this.searchBoxEl);
+    this.icons = {
+          google: {
+            icon: {
+              url: '/google_logo.png',
+              scaledSize: new google.maps.Size(25, 25),
+              origin: new google.maps.Point(0, 0),
+              anchor: new google.maps.Point(0, 0)
+            }
+          },
+          yelp: {
+            icon: {
+              url: '/yelp_logo.png',
+              scaledSize: new google.maps.Size(25, 25),
+              origin: new google.maps.Point(0, 0),
+              anchor: new google.maps.Point(0, 0)
+            }
+          },
+        };
   }
 
   handleSearchClick() {
@@ -111,7 +130,7 @@ class App extends Component {
         max: this.state.searchBounds.b.f,
       },
     };
-    var yelpPlaces = [];
+    var yelpPlacesFormatted = [];
     var googlePlaces = [];
     var googlePlacesFormatted = [];
     var latLon;
@@ -141,27 +160,32 @@ class App extends Component {
           })
           .then(res => res.json())
           .then(data => {
-            var businessArr = data.businesses;
-            for (var i = 0; i < businessArr.length; i++) {
-              if (businessArr[i].coordinates.latitude > bounds.lat.min && businessArr[i].coordinates.latitude < bounds.lat.max && businessArr[i].coordinates.longitude > bounds.lon.min && businessArr[i].coordinates.longitude < bounds.lon.max) {
+            var yelpPlaces = data.businesses;
+            console.log(yelpPlaces);
+            for (var i = 0; i < yelpPlaces.length; i++) {
+              if (yelpPlaces[i].coordinates.latitude > bounds.lat.min && yelpPlaces[i].coordinates.latitude < bounds.lat.max && yelpPlaces[i].coordinates.longitude > bounds.lon.min && yelpPlaces[i].coordinates.longitude < bounds.lon.max) {
                 var business = {
-                  name: businessArr[i].name,
-                  reviewCount: businessArr[i].review_count,
-                  rating: businessArr[i].rating,
-                  priceLevel: businessArr[i].price,
-                  location: businessArr[i].location.display_address[0] + ', ' + businessArr[i].location.display_address[1],
-                  url: 'https://www.yelp.com/biz/' + businessArr[i].id
+                  name: yelpPlaces[i].name,
+                  reviewCount: yelpPlaces[i].review_count,
+                  rating: yelpPlaces[i].rating,
+                  priceLevel: yelpPlaces[i].price,
+                  location: {
+                    lat: yelpPlaces[i].coordinates.latitude,
+                    lng: yelpPlaces[i].coordinates.longitude
+                  },
+                  address: yelpPlaces[i].location.display_address[0] + ', ' + yelpPlaces[i].location.display_address[1],
+                  url: 'https://www.yelp.com/biz/' + yelpPlaces[i].id
                 };
-                if (businessArr[i].is_closed) {
+                if (yelpPlaces[i].is_closed) {
                   business.currStatus = 'Closed now'
                 }
                 else {
                   business.currStatus = 'Open now'
                 }
-                yelpPlaces.push(business);
+                yelpPlacesFormatted.push(business);
               }
             }
-            yelpPlaces = yelpPlaces.sort(function(a, b) {
+            yelpPlacesFormatted = yelpPlacesFormatted.sort(function(a, b) {
               if (a.rating === b.rating) {
                 return b.reviewCount - a.reviewCount;
               }
@@ -187,7 +211,7 @@ class App extends Component {
           .then(res => res.json())
           .then(data => {
             var googlePlaces = data.results;
-            googlePlacesFormatted = formatResults(googlePlacesFormatted,bounds,googlePlaces);
+            googlePlacesFormatted = formatGoogleResults(googlePlacesFormatted,bounds,googlePlaces);
             paramGoogleJSON.pagetoken = data.next_page_token;
             if (googlePlacesFormatted.length < 15) {
               setTimeout( function() {
@@ -198,40 +222,106 @@ class App extends Component {
                 .then(res1 => res1.json())
                 .then(data1 => {
                   googlePlaces = data1.results;
-                  googlePlacesFormatted = formatResults(googlePlacesFormatted,bounds,googlePlaces);
+                  googlePlacesFormatted = formatGoogleResults(googlePlacesFormatted,bounds,googlePlaces);
                   paramGoogleJSON.pagetoken = data1.next_page_token;
                   callback();
                 })
-              }.bind(this), 1600);
+              }, 1600);
             }
             else {
-              this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlaces:yelpPlaces});
+              this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlacesFormatted:yelpPlacesFormatted});
               callback();
             }
           });
         },
         (callback) => {
+          var bothPlacesFormatted = this.state.bothPlacesFormatted;
+          bothPlacesFormatted = [];
           googlePlacesFormatted = googlePlacesFormatted.sort(function(a, b) {
             return b.rating - a.rating;
           });
           if (this.state.map !== undefined) {
-            googlePlacesFormatted.forEach((place) => {
-              var placeMarker = new google.maps.Marker({
+            var foundMatch;
+            var contentString;
+            var nestedGooglePlace;
+            var numPlacesRemoved = 0;
+            var onlyGooglePlacesFormatted = googlePlacesFormatted.slice();
+            var onlyYelpPlacesFormatted = yelpPlacesFormatted.slice();
+            googlePlacesFormatted.forEach((googlePlace, gindex, garray) => {
+              nestedGooglePlace = googlePlace;
+              foundMatch = false;
+              yelpPlacesFormatted.forEach((yelpPlace, yindex, yarray) => {
+                var gyDist = getDistanceFromLatLonInM(nestedGooglePlace.location.lat,nestedGooglePlace.location.lng,yelpPlace.location.lat,yelpPlace.location.lng);
+                if (gyDist < 15 && !foundMatch) {
+                  bothPlacesFormatted.push({
+                    google: nestedGooglePlace,
+                    yelp: yelpPlace,
+                    distance: gyDist
+                  });
+                  onlyGooglePlacesFormatted[gindex] = 0;
+                  onlyYelpPlacesFormatted[yindex] = 0;
+                  foundMatch = true;
+                  var bothPlaceMarker = new google.maps.Marker({
+                    map: map,
+                    title: nestedGooglePlace.name,
+                    position: nestedGooglePlace.location
+                  });
+                  contentString = '<h3>' + googlePlace.name + '</h3>' +
+                  '<p>' + 'Google: ' + googlePlace.rating + '<br>' +
+                  'Yelp: ' + yelpPlace.rating + '</p>';
+                  bothPlaceMarker.info = new google.maps.InfoWindow({
+                    content: contentString
+                  });
+                  google.maps.event.addListener(bothPlaceMarker, 'click', function() {
+                    if (bothPlaceMarker.info) {bothPlaceMarker.info.close()}
+                    bothPlaceMarker.info.open(map, bothPlaceMarker);
+                  });
+                  this.markers.push(bothPlaceMarker);
+                }
+              });
+              if (!foundMatch) {
+                var googlePlaceMarker = new google.maps.Marker({
+                  map: map,
+                  title: googlePlace.name,
+                  position: googlePlace.location,
+                  icon: this.icons.google.icon,
+                  optimized: false
+                });
+                contentString = '<h3>' + googlePlace.name + '</h3>' +
+                '<p>' + 'Google: ' + googlePlace.rating + '</p>';
+                googlePlaceMarker.info = new google.maps.InfoWindow({
+                  content: contentString
+                });
+                google.maps.event.addListener(googlePlaceMarker, 'click', function() {
+                  if (googlePlaceMarker.info) {googlePlaceMarker.info.close()}
+                  googlePlaceMarker.info.open(map, googlePlaceMarker);
+                });
+                this.markers.push(googlePlaceMarker);
+              }
+            });
+            onlyYelpPlacesFormatted = onlyYelpPlacesFormatted.filter((a) => a !== 0)
+            onlyGooglePlacesFormatted = onlyGooglePlacesFormatted.filter((a) => a !== 0)
+            onlyYelpPlacesFormatted.forEach((yelpPlace, yindex, yarray) => {
+              var yelpPlaceMarker = new google.maps.Marker({
                 map: map,
-                title: place.name,
-                position: place.location
+                title: yelpPlace.name,
+                position: yelpPlace.location,
+                icon: this.icons.yelp.icon,
+                optimized: false
               });
-              placeMarker.info = new google.maps.InfoWindow({
-                content: 'Rating: ' + place.rating
+              contentString = '<h3>' + yelpPlace.name + '</h3>' +
+              '<p>' + 'Yelp: ' + yelpPlace.rating + '</p>';
+              yelpPlaceMarker.info = new google.maps.InfoWindow({
+                content: contentString
               });
-              google.maps.event.addListener(placeMarker, 'click', function() {
-                if (placeMarker.info) {placeMarker.info.close()}
-                placeMarker.info.open(map, placeMarker);
+              google.maps.event.addListener(yelpPlaceMarker, 'click', function() {
+                if (yelpPlaceMarker.info) {yelpPlaceMarker.info.close()}
+                yelpPlaceMarker.info.open(map, yelpPlaceMarker);
               });
-              this.markers.push(placeMarker);
+              this.markers.push(yelpPlaceMarker);
             });
           }
-          this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlaces:yelpPlaces});
+          this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlacesFormatted:yelpPlacesFormatted, bothPlacesFormatted:bothPlacesFormatted});
           callback();
         }
     ]);
@@ -242,9 +332,9 @@ class App extends Component {
     var yelpPlacesJSX = [];
     if (this.state.googlePlacesFormatted !== undefined && this.state.googlePlacesFormatted !== null) {
       var googlePlacesFormatted = this.state.googlePlacesFormatted;
-      var yelpPlaces = this.state.yelpPlaces;
+      var yelpPlacesFormatted = this.state.yelpPlacesFormatted;
       var i = 0;
-      while (i < Math.max(googlePlacesFormatted.length, yelpPlaces.length)) {
+      while (i < Math.min(googlePlacesFormatted.length, yelpPlacesFormatted.length)) {
         if (i < googlePlacesFormatted.length) {
           googlePlacesJSX.push(
             <div className="google-places">
@@ -256,15 +346,15 @@ class App extends Component {
             </div>
           );
         }
-        if (i < yelpPlaces.length) {
+        if (i < yelpPlacesFormatted.length) {
           yelpPlacesJSX.push(
             <div className="yelp-places">
-              <h4><a href={yelpPlaces[i].url} target="_blank">{yelpPlaces[i].name}</a></h4>
-              <p>{yelpPlaces[i].location}</p>
-              <p>{yelpPlaces[i].currStatus}</p>
-              <p>{yelpPlaces[i].priceLevel}</p>
-              <p>{yelpPlaces[i].rating} stars</p>
-              <p>{yelpPlaces[i].reviewCount} reviews</p>
+              <h4><a href={yelpPlacesFormatted[i].url} target="_blank">{yelpPlacesFormatted[i].name}</a></h4>
+              <p>{yelpPlacesFormatted[i].address}</p>
+              <p>{yelpPlacesFormatted[i].currStatus}</p>
+              <p>{yelpPlacesFormatted[i].priceLevel}</p>
+              <p>{yelpPlacesFormatted[i].rating} stars</p>
+              <p>{yelpPlacesFormatted[i].reviewCount} reviews</p>
             </div>
           );
         }
