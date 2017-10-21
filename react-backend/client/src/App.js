@@ -185,6 +185,7 @@ class App extends Component {
   }
 
   handleSubmit(event) {
+    document.activeElement.blur();
     this.nonloaderEl.style.opacity = "0.2";
     event.preventDefault();
     this.loader.classList.add("loader-activated");

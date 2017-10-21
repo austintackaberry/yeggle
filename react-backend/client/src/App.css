@@ -93,6 +93,7 @@ input {
   border:0px solid #e9ebee;
   padding: 3px;
   width: 185px;
+  outline-width: 0;
 }
 
 .loader-activated {
