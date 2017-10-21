@@ -185,7 +185,10 @@ class App extends Component {
   }
 
   handleSubmit(event) {
+    this.nonloaderEl.style.opacity = "0.2";
     event.preventDefault();
+    this.loader.classList.add("loader-activated");
+    this.loader.style.display = "block";
     const google = window.google;
     var map = this.state.map;
     if (this.locationBoxEl !== "") {
@@ -385,6 +388,10 @@ class App extends Component {
               this.markers.push(yelpPlaceMarker);
             });
           }
+          this.locationBoxEl.value = "";
+          this.loader.classList.remove("loader-activated");
+          this.nonloaderEl.style.opacity = "1";
+          this.loader.style.display = "none";
           this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlacesFormatted:yelpPlacesFormatted, bothPlacesFormatted:bothPlacesFormatted});
           callback();
         }
@@ -427,32 +434,35 @@ class App extends Component {
     }
     return (
       <div className="App">
-        <header className="App-header">
-          <h1 className="App-title">Welcome to Googelp</h1>
-          <form onSubmit={this.handleSubmit}>
-            <input placeholder="Location" ref={(locationBoxEl) => {this.locationBoxEl = locationBoxEl;}}/>
-            <input onClick={this.handleSearchClick} onChange={this.handleChange} onKeyPress={this.handleChange} id="search-box" ref={(searchBoxEl) => {this.searchBoxEl = searchBoxEl;}} placeholder="Search" />
-            <input type="submit" style={{display:'none'}}/>
-          </form>
-        </header>
-        <div id="map-wrapper" ref={(mapWrapper) => {this.mapWrapper = mapWrapper;}}>
-          <div id="map" ref={(map) => {this.map = map;}}></div>
-        </div>
-        <div className="grid" ref={(gridHead) => {this.gridHead = gridHead;}}>
-          <div className="col-1-2" ref={(googleHead) => {this.googleHead = googleHead;}}>
-            <h3>Google</h3>
+        <div id="loader" style={{display:'none'}} ref={(loader) => {this.loader = loader;}}></div>
+        <div ref={(nonloaderEl) => {this.nonloaderEl = nonloaderEl;}}>
+          <header className="App-header">
+            <h1 className="App-title">Welcome to Googelp</h1>
+            <form onSubmit={this.handleSubmit}>
+              <input placeholder="Location" ref={(locationBoxEl) => {this.locationBoxEl = locationBoxEl;}}/>
+              <input onClick={this.handleSearchClick} onChange={this.handleChange} onKeyPress={this.handleChange} id="search-box" ref={(searchBoxEl) => {this.searchBoxEl = searchBoxEl;}} placeholder="Search" />
+              <input type="submit" style={{display:'none'}}/>
+            </form>
+          </header>
+          <div id="map-wrapper" ref={(mapWrapper) => {this.mapWrapper = mapWrapper;}}>
+            <div id="map" ref={(map) => {this.map = map;}}></div>
           </div>
-          <div className="col-1-2" ref={(yelpHead) => {this.yelpHead = yelpHead;}}>
-            <h3>Yelp</h3>
+          <div className="grid" ref={(gridHead) => {this.gridHead = gridHead;}}>
+            <div className="col-1-2" ref={(googleHead) => {this.googleHead = googleHead;}}>
+              <h3>Google</h3>
+            </div>
+            <div className="col-1-2" ref={(yelpHead) => {this.yelpHead = yelpHead;}}>
+              <h3>Yelp</h3>
+            </div>
           </div>
-        </div>
-        <div ref={(placeHolder) => {this.placeHolder = placeHolder;}}></div>
-        <div className="grid">
-          <div className="col-2-2">
-            {googlePlacesJSX}
-          </div>
-          <div className="col-2-2">
-            {yelpPlacesJSX}
+          <div ref={(placeHolder) => {this.placeHolder = placeHolder;}}></div>
+          <div className="grid">
+            <div className="col-2-2">
+              {googlePlacesJSX}
+            </div>
+            <div className="col-2-2">
+              {yelpPlacesJSX}
+            </div>
           </div>
         </div>
       </div>
