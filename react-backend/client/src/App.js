@@ -103,11 +103,29 @@ class App extends Component {
     this.handleSearchClick = this.handleSearchClick.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
     this.handleChange = this.handleChange.bind(this);
+    this.handleScroll = this.handleScroll.bind(this);
   }
 
   componentDidMount() {
     window.initMap = this.initMap;
     loadjs('https://maps.googleapis.com/maps/api/js?key=AIzaSyCkzLkLAJ_ZRGvaAg2c9R2sC_n-OHLq-x8&libraries=places&callback=initMap');
+    window.addEventListener('scroll', this.handleScroll);
+  }
+
+  handleScroll() {
+    var rect = this.mapWrapper.getBoundingClientRect();
+    if (rect.top <= 0) {
+      this.mapWrapper.classList.add("sticky");
+      this.gridHead.classList.add("sticky-grid-heading");
+      this.placeHolder.style.height = (this.gridHead.clientHeight+this.mapWrapper.clientHeight)+"px";
+      this.placeHolder.style.width = "100%";
+    }
+    if (window.scrollY <= 150 && this.mapWrapper.classList.contains("sticky")){
+      this.mapWrapper.classList.toggle("sticky");
+      this.gridHead.classList.toggle("sticky-grid-heading");
+      this.placeHolder.style.height = "0";
+      this.placeHolder.style.width = "0";
+    }
   }
 
   initMap() {
@@ -216,7 +234,6 @@ class App extends Component {
           .then(res => res.json())
           .then(data => {
             var yelpPlaces = data.businesses;
-            console.log(yelpPlaces);
             for (var i = 0; i < yelpPlaces.length; i++) {
               if (yelpPlaces[i].coordinates.latitude > bounds.lat.min && yelpPlaces[i].coordinates.latitude < bounds.lat.max && yelpPlaces[i].coordinates.longitude > bounds.lon.min && yelpPlaces[i].coordinates.longitude < bounds.lon.max) {
                 var business = {
@@ -418,14 +435,23 @@ class App extends Component {
             <input type="submit" style={{display:'none'}}/>
           </form>
         </header>
-        <div id="map" ref={(map) => {this.map = map;}}></div>
-        <div className="grid">
-          <div className="col-1-2">
+        <div id="map-wrapper" ref={(mapWrapper) => {this.mapWrapper = mapWrapper;}}>
+          <div id="map" ref={(map) => {this.map = map;}}></div>
+        </div>
+        <div className="grid" ref={(gridHead) => {this.gridHead = gridHead;}}>
+          <div className="col-1-2" ref={(googleHead) => {this.googleHead = googleHead;}}>
             <h3>Google</h3>
+          </div>
+          <div className="col-1-2" ref={(yelpHead) => {this.yelpHead = yelpHead;}}>
+            <h3>Yelp</h3>
+          </div>
+        </div>
+        <div ref={(placeHolder) => {this.placeHolder = placeHolder;}}></div>
+        <div className="grid">
+          <div className="col-2-2">
             {googlePlacesJSX}
           </div>
-          <div className="col-1-2">
-            <h3>Yelp</h3>
+          <div className="col-2-2">
             {yelpPlacesJSX}
           </div>
         </div>
