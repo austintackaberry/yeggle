@@ -214,23 +214,41 @@ class App extends Component {
       var places = this.locationBox.getPlaces();
       if (places !== undefined) {
         map.setCenter(places[0].geometry.location);
+        mapBounds = map.getBounds();
+        this.searchBox.setBounds(mapBounds);
+        bounds = {
+          lat: {
+            min: mapBounds.f.b,
+            max: mapBounds.f.f,
+          },
+          lon: {
+            min: mapBounds.b.b,
+            max: mapBounds.b.f,
+          }
+        };
+        diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
+        if (diagMeters > 40000 * 2) {
+          diagMeters = 40000 * 2;
+        }
       }
     }
-    mapBounds = map.getBounds();
-    this.searchBox.setBounds(mapBounds);
-    bounds = {
-      lat: {
-        min: mapBounds.f.b,
-        max: mapBounds.f.f,
-      },
-      lon: {
-        min: mapBounds.b.b,
-        max: mapBounds.b.f,
+    else {
+      mapBounds = map.getBounds();
+      this.searchBox.setBounds(mapBounds);
+      bounds = {
+        lat: {
+          min: mapBounds.f.b,
+          max: mapBounds.f.f,
+        },
+        lon: {
+          min: mapBounds.b.b,
+          max: mapBounds.b.f,
+        }
+      };
+      diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
+      if (diagMeters > 40000 * 2) {
+        diagMeters = 40000 * 2;
       }
-    };
-    diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
-    if (diagMeters > 40000 * 2) {
-      diagMeters = 40000 * 2;
     }
     var yelpPlacesFormatted = [];
     var googlePlaces = [];
@@ -242,7 +260,7 @@ class App extends Component {
     this.markers = [];
     async.series([
       (callback) => {
-        if (places === undefined) {
+        if (this.locationBoxEl !== "" && places === undefined) {
           var paramGoogleJSON = {
             query: this.locationBoxEl.value
           };
@@ -253,7 +271,9 @@ class App extends Component {
           .then(res => res.json())
           .then(data => {
             console.log(data);
-            map.setCenter(data.results[0].geometry.location);
+            if (data.results[0] !== undefined) {
+              map.setCenter(data.results[0].geometry.location);
+            }
             mapBounds = map.getBounds();
             this.searchBox.setBounds(mapBounds);
             bounds = {
