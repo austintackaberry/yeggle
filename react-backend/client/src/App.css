@@ -4,8 +4,8 @@
 
 .App-header {
   background-color: #222;
-  height: 150px;
-  padding: 15px;
+  height: 160px;
+  padding: 12px;
   color: #e9ebee;
 }
 
@@ -71,16 +71,39 @@ a:visited {
   width: 100%;
 }
 
-.col-1-2 {
-  float: left;
-  width: 46%;
+.row1 {
   margin-left: 2%;
   margin-right: 2%;
-  border-bottom: 1px solid #222;
-  height: 60px;
+  margin-top: 1%;
+  display:table;
+  width: 96%;
+}
+.item1-left {
+  margin-bottom: 2%;
+  margin-top: 1%;
+  padding-left: 2%;
+  padding-right: 4%;
+  border-bottom: 1px solid rgb(139, 139, 139);
+  display: table-cell;
+  width: 48%;
+  vertical-align: top;
+}
+.item1-center {
+  width: 5%;
 }
 
-.row {
+.item1-right {
+  margin-bottom: 2%;
+  margin-top: 1%;
+  padding-left: 4%;
+  padding-right: 2%;
+  border-bottom: 1px solid rgb(139, 139, 139);
+  display: table-cell;
+  width: 48%;
+  vertical-align: top;
+}
+
+.row2 {
   margin-left: 2%;
   margin-right: 2%;
   margin-bottom: 1%;
@@ -89,25 +112,29 @@ a:visited {
   width: 96%;
 }
 
-.item-left {
+.item2-center {
+  width: 5%;
+}
+
+.item2-left {
   margin-bottom: 2%;
   margin-top: 1%;
   padding-left: 2%;
   padding-right: 4%;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid rgb(170, 170, 170);
   display: table-cell;
-  width: 43%;
+  width: 48%;
   vertical-align: top;
 }
 
-.item-right {
+.item2-right {
   margin-bottom: 2%;
   margin-top: 1%;
   padding-left: 4%;
   padding-right: 2%;
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid rgb(170, 170, 170);
   display: table-cell;
-  width: 43%;
+  width: 48%;
   vertical-align: top;
 }
 
@@ -118,15 +145,14 @@ input {
   background-color: #e9ebee;
   border:0px solid #e9ebee;
   padding: 4px;
-  width: 185px;
+  width: 25%;
+  min-width: 185px;
   outline-width: 0;
   border-radius: 2px;
 }
 
 .loader-activated {
   display: block;
-    /*position:fixed;top:0;right:0;bottom:0;left:0;*/
-    /*background: #ff0000 url(...) no-repeat 50% 50%;*/
 }
 
 #loader {
@@ -144,6 +170,10 @@ input {
   width: 120px;
   height: 120px;
   animation: spin 2s linear infinite;
+}
+
+#submit-button {
+  margin-left: -1000px;
 }
 
 @keyframes spin {

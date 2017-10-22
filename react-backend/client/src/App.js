@@ -425,8 +425,8 @@ class App extends Component {
           googleStars = googlePlacesFormatted[i].rating + ' stars';
         }
         placesJSX.push(
-          <div className="row">
-            <div className="item-left">
+          <div className="row2">
+            <div className="item2-left">
               <h4><a href={yelpPlacesFormatted[i].url} target="_blank">{yelpPlacesFormatted[i].name}</a></h4>
               <p>{yelpPlacesFormatted[i].address}</p>
               <p>{yelpPlacesFormatted[i].currStatus}</p>
@@ -434,7 +434,8 @@ class App extends Component {
               <p>{yelpPlacesFormatted[i].rating} stars</p>
               <p>{yelpPlacesFormatted[i].reviewCount} reviews</p>
             </div>
-            <div className="item-right">
+            <div className="item2-center"></div>
+            <div className="item2-right">
               <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
               <p>{googlePlacesFormatted[i].address}</p>
               <p>{googlePlacesFormatted[i].currStatus}</p>
@@ -455,18 +456,21 @@ class App extends Component {
             <form onSubmit={this.handleSubmit}>
               <input placeholder="Location" ref={(locationBoxEl) => {this.locationBoxEl = locationBoxEl;}}/>
               <input onClick={this.handleSearchClick} onChange={this.handleChange} onKeyPress={this.handleChange} id="search-box" ref={(searchBoxEl) => {this.searchBoxEl = searchBoxEl;}} placeholder="Search" />
-              <input type="submit" style={{display:'none'}}/>
+              <input id="submit-button" type="submit"/>
             </form>
           </header>
           <div id="map-wrapper" ref={(mapWrapper) => {this.mapWrapper = mapWrapper;}}>
             <div id="map" ref={(map) => {this.map = map;}}></div>
           </div>
           <div className="grid1" ref={(gridHead) => {this.gridHead = gridHead;}}>
-            <div className="col-1-2" ref={(googleHead) => {this.googleHead = googleHead;}}>
-              <h3>Yelp</h3>
-            </div>
-            <div className="col-1-2" ref={(yelpHead) => {this.yelpHead = yelpHead;}}>
-              <h3>Google</h3>
+            <div className="row1">
+              <div className="item1-left" ref={(yelpHead) => {this.yelpHead = yelpHead;}}>
+                <h3>Yelp</h3>
+              </div>
+              <div className="item1-center"></div>
+              <div className="item1-right" ref={(googleHead) => {this.googleHead = googleHead;}}>
+                <h3>Google</h3>
+              </div>
             </div>
           </div>
           <div ref={(placeHolder) => {this.placeHolder = placeHolder;}}></div>
