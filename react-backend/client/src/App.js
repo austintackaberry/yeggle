@@ -166,6 +166,14 @@ class App extends Component {
           anchor: new google.maps.Point(0, 0)
         }
       },
+      yeggle: {
+        icon: {
+          url: '/yeggle.png',
+          scaledSize: new google.maps.Size(30, 30),
+          origin: new google.maps.Point(0, 0),
+          anchor: new google.maps.Point(0, 0)
+        }
+      }
     };
     this.infoWindow = new google.maps.InfoWindow;
   }
@@ -343,6 +351,7 @@ class App extends Component {
                       map: map,
                       title: nestedGooglePlace.name,
                       position: nestedGooglePlace.location,
+                      icon: this.icons.yeggle.icon,
                       content: '<h3>' + googlePlace.name + '</h3>' +
                       '<p>' + 'Google: ' + googlePlace.rating + '<br>' +
                       'Yelp: ' + yelpPlace.rating + '</p>'
