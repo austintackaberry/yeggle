@@ -32,30 +32,35 @@ function placeMatch(googlePlace, yelpPlace) {
   var googleNameArr = googlePlace.name.split(' ');
   var yelpNameArr = yelpPlace.name.split(' ');
   var i = 0;
-  var match = 0;
+  var nameMatch = 0;
   while (i < Math.min(googleNameArr.length, yelpNameArr.length)){
     if (googleNameArr[i] == yelpNameArr[i]) {
-      match++;
+      nameMatch++;
     }
     i++;
   }
-  if (match === i) {
+  if (nameMatch === i) {
     return true;
-  }
-  if (match/i < 0.5) {
-    return false;
   }
   var googleAddressArr = googlePlace.address.split(' ');
   var yelpAddressArr = yelpPlace.address.split(' ');
   i = 0;
-  match = 0;
+  var addressMatch = 0;
   while (i < Math.min(googleAddressArr.length, yelpAddressArr.length)){
     if (googleAddressArr[i] == yelpAddressArr[i]) {
-      match++;
+      addressMatch++;
     }
     i++;
   }
-  if (match < 2) {
+
+  if (addressMatch >= 2) {
+    return true;
+  }
+  else {
+    return false;
+  }
+
+  if (nameMatch/i*1.0 < 0.5) {
     return false;
   }
   return true;
@@ -412,20 +417,38 @@ class App extends Component {
 
   render() {
     var placesJSX = [];
+    var googlePlacesJSX = [];
+    var yelpPlacesJSX = [];
     if (this.state.googlePlacesFormatted !== undefined && this.state.googlePlacesFormatted !== null) {
       var googlePlacesFormatted = this.state.googlePlacesFormatted;
       var yelpPlacesFormatted = this.state.yelpPlacesFormatted;
       var i = 0;
       var googleStars;
-      while (i < Math.min(googlePlacesFormatted.length, yelpPlacesFormatted.length)) {
-        if (googlePlacesFormatted[i].rating == "") {
-          googleStars = "";
+      while (i < Math.max(googlePlacesFormatted.length, yelpPlacesFormatted.length)) {
+        if (i < googlePlacesFormatted.length) {
+          if (googlePlacesFormatted[i].rating == "" || googlePlacesFormatted[i].rating == undefined) {
+            googleStars = "";
+          }
+          else {
+            googleStars = googlePlacesFormatted[i].rating + ' stars';
+          }
+          googlePlacesJSX.push(
+            <div className="item2-right">
+              <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
+              <p>{googlePlacesFormatted[i].address}</p>
+              <p>{googlePlacesFormatted[i].currStatus}</p>
+              <p>{googlePlacesFormatted[i].priceLevel}</p>
+              <p>{googleStars}</p>
+            </div>
+          );
         }
         else {
-          googleStars = googlePlacesFormatted[i].rating + ' stars';
+          googlePlacesJSX.push(
+            <div className="item2-right-empty"></div>
+          );
         }
-        placesJSX.push(
-          <div className="row2">
+        if (i < yelpPlacesFormatted.length) {
+          yelpPlacesJSX.push(
             <div className="item2-left">
               <h4><a href={yelpPlacesFormatted[i].url} target="_blank">{yelpPlacesFormatted[i].name}</a></h4>
               <p>{yelpPlacesFormatted[i].address}</p>
@@ -434,14 +457,18 @@ class App extends Component {
               <p>{yelpPlacesFormatted[i].rating} stars</p>
               <p>{yelpPlacesFormatted[i].reviewCount} reviews</p>
             </div>
+          );
+        }
+        else {
+          yelpPlacesJSX.push(
+            <div className="item2-left-empty"></div>
+          );
+        }
+        placesJSX.push(
+          <div className="row2">
+            {yelpPlacesJSX[i]}
             <div className="item2-center"></div>
-            <div className="item2-right">
-              <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
-              <p>{googlePlacesFormatted[i].address}</p>
-              <p>{googlePlacesFormatted[i].currStatus}</p>
-              <p>{googlePlacesFormatted[i].priceLevel}</p>
-              <p>{googleStars}</p>
-            </div>
+            {googlePlacesJSX[i]}
           </div>
         );
         i++;
