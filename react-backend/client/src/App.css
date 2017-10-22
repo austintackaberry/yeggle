@@ -22,13 +22,27 @@
   width: 100%;
 }
 
-.grid {
+.grid1 {
   margin-left: 1%;
   margin-right: 1%;
   margin-bottom: 1%;
+  width: 100%;
+  background-color: #e9ebee;
 }
 
-.grid:after {
+.grid1:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+.grid2 {
+  margin-left: 1%;
+  margin-right: 1%;
+  margin-bottom: 1%;
+  width: 100%;
+}
+
+.grid2:after {
   content: "";
   display: table;
   clear: both;
@@ -47,7 +61,7 @@
 .sticky-grid-heading {
   position: fixed;
   top: 300px;
-  width: 98%;
+  width: 100%;
 }
 
 .col-1-2 {
@@ -56,33 +70,38 @@
   margin-left: 2%;
   margin-right: 2%;
   border-bottom: 1px solid #222;
-  background-color: #e9ebee;
   height: 60px;
 }
 
-.col-2-2 {
-  float: left;
-  width: 48%;
-  margin-left: 1%;
-  margin-right: 1%;
-}
-
-
-.yelp-places {
+.row {
   margin-left: 2%;
   margin-right: 2%;
-  margin-bottom: 2%;
+  margin-bottom: 1%;
   margin-top: 1%;
-  border-bottom: 1px solid #222;
-  height: 230px;
+  display:table;
+  width: 96%;
 }
-.google-places {
-  margin-left: 2%;
-  margin-right: 2%;
+
+.item-left {
   margin-bottom: 2%;
   margin-top: 1%;
+  padding-left: 2%;
+  padding-right: 4%;
   border-bottom: 1px solid #222;
-  height: 230px;
+  display: table-cell;
+  width: 43%;
+  vertical-align: top;
+}
+
+.item-right {
+  margin-bottom: 2%;
+  margin-top: 1%;
+  padding-left: 4%;
+  padding-right: 2%;
+  border-bottom: 1px solid #222;
+  display: table-cell;
+  width: 43%;
+  vertical-align: top;
 }
 
 input {

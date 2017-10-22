@@ -115,10 +115,10 @@ class App extends Component {
   handleScroll() {
     var rect = this.mapWrapper.getBoundingClientRect();
     if (rect.top <= 0) {
-      this.mapWrapper.classList.add("sticky");
-      this.gridHead.classList.add("sticky-grid-heading");
       this.placeHolder.style.height = (this.gridHead.clientHeight+this.mapWrapper.clientHeight)+"px";
       this.placeHolder.style.width = "100%";
+      this.mapWrapper.classList.add("sticky");
+      this.gridHead.classList.add("sticky-grid-heading");
     }
     if (window.scrollY <= 150 && this.mapWrapper.classList.contains("sticky")){
       this.mapWrapper.classList.toggle("sticky");
@@ -400,27 +400,22 @@ class App extends Component {
   }
 
   render() {
-    var googlePlacesJSX = [];
-    var yelpPlacesJSX = [];
+    var placesJSX = [];
     if (this.state.googlePlacesFormatted !== undefined && this.state.googlePlacesFormatted !== null) {
       var googlePlacesFormatted = this.state.googlePlacesFormatted;
       var yelpPlacesFormatted = this.state.yelpPlacesFormatted;
       var i = 0;
       while (i < Math.min(googlePlacesFormatted.length, yelpPlacesFormatted.length)) {
-        if (i < googlePlacesFormatted.length) {
-          googlePlacesJSX.push(
-            <div className="google-places">
+        placesJSX.push(
+          <div className="row">
+            <div className="item-left">
               <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
               <p>{googlePlacesFormatted[i].address}</p>
               <p>{googlePlacesFormatted[i].currStatus}</p>
               <p>{googlePlacesFormatted[i].priceLevel}</p>
               <p>{googlePlacesFormatted[i].rating} stars</p>
             </div>
-          );
-        }
-        if (i < yelpPlacesFormatted.length) {
-          yelpPlacesJSX.push(
-            <div className="yelp-places">
+            <div className="item-right">
               <h4><a href={yelpPlacesFormatted[i].url} target="_blank">{yelpPlacesFormatted[i].name}</a></h4>
               <p>{yelpPlacesFormatted[i].address}</p>
               <p>{yelpPlacesFormatted[i].currStatus}</p>
@@ -428,8 +423,8 @@ class App extends Component {
               <p>{yelpPlacesFormatted[i].rating} stars</p>
               <p>{yelpPlacesFormatted[i].reviewCount} reviews</p>
             </div>
-          );
-        }
+          </div>
+        );
         i++;
       }
     }
@@ -448,7 +443,7 @@ class App extends Component {
           <div id="map-wrapper" ref={(mapWrapper) => {this.mapWrapper = mapWrapper;}}>
             <div id="map" ref={(map) => {this.map = map;}}></div>
           </div>
-          <div className="grid" ref={(gridHead) => {this.gridHead = gridHead;}}>
+          <div className="grid1" ref={(gridHead) => {this.gridHead = gridHead;}}>
             <div className="col-1-2" ref={(googleHead) => {this.googleHead = googleHead;}}>
               <h3>Google</h3>
             </div>
@@ -457,13 +452,8 @@ class App extends Component {
             </div>
           </div>
           <div ref={(placeHolder) => {this.placeHolder = placeHolder;}}></div>
-          <div className="grid">
-            <div className="col-2-2">
-              {googlePlacesJSX}
-            </div>
-            <div className="col-2-2">
-              {yelpPlacesJSX}
-            </div>
+          <div className="grid2">
+            {placesJSX}
           </div>
         </div>
       </div>
