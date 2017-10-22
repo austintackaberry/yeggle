@@ -62,6 +62,25 @@ app.post('/googlesearch', function(req, res) {
     console.log(e);
   });
 });
+app.post('/googlelocationsearch', function(req, res) {
+  console.log('google location search received request');
+  var googleSearchTerms = JSON.parse(req.body);
+  var url = 'https://maps.googleapis.com/maps/api/place/textsearch/json?key=' + process.env.GOOGLE_API_KEY + '&query=' + googleSearchTerms.query;
+  fetch(url, {
+    method: 'GET'
+  })
+  .then(res => res.json())
+  .catch(e => {
+    console.log(e);
+  })
+  .then(data => {
+    console.log(data);
+    res.send(data);
+  })
+  .catch(e => {
+    console.log(e);
+  });
+});
 app.listen(process.env.PORT || 3001);
 console.log('listening on 3001');
 // app.use('/', index);

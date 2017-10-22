@@ -198,22 +198,27 @@ class App extends Component {
   }
 
   handleSubmit(event) {
+    event.preventDefault();
+
     document.activeElement.blur();
     this.nonloaderEl.style.opacity = "0.2";
-    event.preventDefault();
     this.loader.classList.add("loader-activated");
     this.loader.style.display = "block";
+
     const google = window.google;
     var map = this.state.map;
+    var diagMeters;
+    var bounds;
+    var mapBounds;
     if (this.locationBoxEl !== "") {
       var places = this.locationBox.getPlaces();
       if (places !== undefined) {
         map.setCenter(places[0].geometry.location);
       }
     }
-    var mapBounds = map.getBounds();
+    mapBounds = map.getBounds();
     this.searchBox.setBounds(mapBounds);
-    var bounds = {
+    bounds = {
       lat: {
         min: mapBounds.f.b,
         max: mapBounds.f.f,
@@ -221,21 +226,57 @@ class App extends Component {
       lon: {
         min: mapBounds.b.b,
         max: mapBounds.b.f,
-      },
+      }
     };
-    var yelpPlacesFormatted = [];
-    var googlePlaces = [];
-    var googlePlacesFormatted = [];
-    var diagMeters;
     diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
     if (diagMeters > 40000 * 2) {
       diagMeters = 40000 * 2;
     }
+    var yelpPlacesFormatted = [];
+    var googlePlaces = [];
+    var googlePlacesFormatted = [];
+    var diagMeters;
     this.markers.forEach(function(marker) {
       marker.setMap(null);
     });
     this.markers = [];
     async.series([
+      (callback) => {
+        if (places === undefined) {
+          var paramGoogleJSON = {
+            query: this.locationBoxEl.value
+          };
+          fetch('/googlelocationsearch', {
+            method: 'POST',
+            body: JSON.stringify(paramGoogleJSON)
+          })
+          .then(res => res.json())
+          .then(data => {
+            console.log(data);
+            map.setCenter(data.results[0].geometry.location);
+            mapBounds = map.getBounds();
+            this.searchBox.setBounds(mapBounds);
+            bounds = {
+              lat: {
+                min: mapBounds.f.b,
+                max: mapBounds.f.f,
+              },
+              lon: {
+                min: mapBounds.b.b,
+                max: mapBounds.b.f,
+              }
+            };
+            diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
+            if (diagMeters > 40000 * 2) {
+              diagMeters = 40000 * 2;
+            }
+            callback();
+          });
+        }
+        else {
+          callback();
+        }
+      },
       (callback) => {
           var paramYelpJSON = {
             term: this.searchBoxEl.value,
@@ -481,8 +522,8 @@ class App extends Component {
           <header className="App-header">
             <h1 className="App-title">Welcome to Yeggle</h1>
             <form onSubmit={this.handleSubmit}>
-              <input placeholder="Location" ref={(locationBoxEl) => {this.locationBoxEl = locationBoxEl;}}/>
-              <input onClick={this.handleSearchClick} onChange={this.handleChange} onKeyPress={this.handleChange} id="search-box" ref={(searchBoxEl) => {this.searchBoxEl = searchBoxEl;}} placeholder="Search" />
+              <input onClick={this.handleSearchClick} onChange={this.handleChange} onKeyPress={this.handleChange} id="search-box" ref={(searchBoxEl) => {this.searchBoxEl = searchBoxEl;}} placeholder="Search for" />
+              <input placeholder="Near" ref={(locationBoxEl) => {this.locationBoxEl = locationBoxEl;}}/>
               <input id="submit-button" type="submit"/>
             </form>
           </header>
