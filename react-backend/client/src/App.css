@@ -5,7 +5,7 @@
 .App-header {
   background-color: #222;
   height: 150px;
-  padding: 20px;
+  padding: 15px;
   color: #e9ebee;
 }
 
@@ -28,6 +28,13 @@
   margin-bottom: 1%;
   width: 100%;
   background-color: #e9ebee;
+}
+
+a:link {
+  color: rgb(64, 133, 167);
+}
+a:visited {
+  color: rgb(116, 84, 156);
 }
 
 .grid1:after {
@@ -110,9 +117,10 @@ input {
   margin-bottom: 7px;
   background-color: #e9ebee;
   border:0px solid #e9ebee;
-  padding: 3px;
+  padding: 4px;
   width: 185px;
   outline-width: 0;
+  border-radius: 2px;
 }
 
 .loader-activated {

@@ -215,10 +215,9 @@ class App extends Component {
     var googlePlacesFormatted = [];
     var diagMeters;
     diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
-    if (diagMeters > 75000) {
-      diagMeters = 75000;
+    if (diagMeters > 40000 * 2) {
+      diagMeters = 40000 * 2;
     }
-
     this.markers.forEach(function(marker) {
       marker.setMap(null);
     });
@@ -275,6 +274,9 @@ class App extends Component {
         (callback) => {
           var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
           var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
+          if (diagMeters > 50000 * 2) {
+            diagMeters = 50000 * 2;
+          }
           var paramGoogleJSON = {
             keyword: this.searchBoxEl.value,
             location: latitude.toString() + "," + longitude.toString(),
@@ -405,23 +407,30 @@ class App extends Component {
       var googlePlacesFormatted = this.state.googlePlacesFormatted;
       var yelpPlacesFormatted = this.state.yelpPlacesFormatted;
       var i = 0;
+      var googleStars;
       while (i < Math.min(googlePlacesFormatted.length, yelpPlacesFormatted.length)) {
+        if (googlePlacesFormatted[i].rating == "") {
+          googleStars = "";
+        }
+        else {
+          googleStars = googlePlacesFormatted[i].rating + ' stars';
+        }
         placesJSX.push(
           <div className="row">
             <div className="item-left">
-              <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
-              <p>{googlePlacesFormatted[i].address}</p>
-              <p>{googlePlacesFormatted[i].currStatus}</p>
-              <p>{googlePlacesFormatted[i].priceLevel}</p>
-              <p>{googlePlacesFormatted[i].rating} stars</p>
-            </div>
-            <div className="item-right">
               <h4><a href={yelpPlacesFormatted[i].url} target="_blank">{yelpPlacesFormatted[i].name}</a></h4>
               <p>{yelpPlacesFormatted[i].address}</p>
               <p>{yelpPlacesFormatted[i].currStatus}</p>
               <p>{yelpPlacesFormatted[i].priceLevel}</p>
               <p>{yelpPlacesFormatted[i].rating} stars</p>
               <p>{yelpPlacesFormatted[i].reviewCount} reviews</p>
+            </div>
+            <div className="item-right">
+              <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
+              <p>{googlePlacesFormatted[i].address}</p>
+              <p>{googlePlacesFormatted[i].currStatus}</p>
+              <p>{googlePlacesFormatted[i].priceLevel}</p>
+              <p>{googleStars}</p>
             </div>
           </div>
         );
@@ -433,7 +442,7 @@ class App extends Component {
         <div id="loader" style={{display:'none'}} ref={(loader) => {this.loader = loader;}}></div>
         <div ref={(nonloaderEl) => {this.nonloaderEl = nonloaderEl;}}>
           <header className="App-header">
-            <h1 className="App-title">Welcome to Googelp</h1>
+            <h1 className="App-title">Welcome to Yeggle</h1>
             <form onSubmit={this.handleSubmit}>
               <input placeholder="Location" ref={(locationBoxEl) => {this.locationBoxEl = locationBoxEl;}}/>
               <input onClick={this.handleSearchClick} onChange={this.handleChange} onKeyPress={this.handleChange} id="search-box" ref={(searchBoxEl) => {this.searchBoxEl = searchBoxEl;}} placeholder="Search" />
@@ -445,10 +454,10 @@ class App extends Component {
           </div>
           <div className="grid1" ref={(gridHead) => {this.gridHead = gridHead;}}>
             <div className="col-1-2" ref={(googleHead) => {this.googleHead = googleHead;}}>
-              <h3>Google</h3>
+              <h3>Yelp</h3>
             </div>
             <div className="col-1-2" ref={(yelpHead) => {this.yelpHead = yelpHead;}}>
-              <h3>Yelp</h3>
+              <h3>Google</h3>
             </div>
           </div>
           <div ref={(placeHolder) => {this.placeHolder = placeHolder;}}></div>
