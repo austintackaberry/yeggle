@@ -66,8 +66,8 @@ function placeMatch(googlePlace, yelpPlace) {
   return true;
 }
 
-function formatGoogleResults(googlePlacesFormatted, bounds, googlePlaces) {
-  for (var i = 0; i < googlePlaces.length && googlePlacesFormatted.length < 20; i++) {
+function formatGoogleResults(googlePlacesBestMatch, bounds, googlePlaces) {
+  for (var i = 0; i < googlePlaces.length && googlePlacesBestMatch.length < 20; i++) {
     if (googlePlaces[i].geometry.location.lat > bounds.lat.min && googlePlaces[i].geometry.location.lat < bounds.lat.max && googlePlaces[i].geometry.location.lng > bounds.lon.min && googlePlaces[i].geometry.location.lng < bounds.lon.max) {
       var priceLevel = '$'.repeat(googlePlaces[i].price_level);
       var currStatus;
@@ -89,19 +89,23 @@ function formatGoogleResults(googlePlacesFormatted, bounds, googlePlaces) {
         currStatus: currStatus,
         url: 'https://www.google.com/maps/search/?api=1&query=Google&query_place_id=' + googlePlaces[i].place_id
       };
-      googlePlacesFormatted.push(place);
+      googlePlacesBestMatch.push(place);
     }
   }
-  return googlePlacesFormatted;
+  return googlePlacesBestMatch;
 }
 
 class App extends Component {
   constructor() {
     super();
     this.state = {
-      googlePlacesFormatted: [],
-      yelpPlacesFormatted: [],
-      bothPlacesFormatted: []
+      googlePlacesBestMatch: [],
+      yelpPlacesBestMatch: [],
+      bothPlacesFormatted: [],
+      currentGooglePlaces: [],
+      currentYelpPlaces: [],
+      sort: 0,
+      filter: [false,true,true,true]
     }
     this.markers = [];
     this.initMap = this.initMap.bind(this);
@@ -109,6 +113,8 @@ class App extends Component {
     this.handleSubmit = this.handleSubmit.bind(this);
     this.handleChange = this.handleChange.bind(this);
     this.handleScroll = this.handleScroll.bind(this);
+    this.handleSortClick = this.handleSortClick.bind(this);
+    this.handleFilterClick = this.handleFilterClick.bind(this);
   }
 
   componentDidMount() {
@@ -118,16 +124,14 @@ class App extends Component {
   }
 
   handleScroll() {
-    var rect = this.mapWrapper.getBoundingClientRect();
+    var rect = this.stickyWrapper.getBoundingClientRect();
     if (rect.top <= 0) {
-      this.placeHolder.style.height = (this.gridHead.clientHeight+this.mapWrapper.clientHeight)+"px";
+      this.placeHolder.style.height = this.stickyWrapper.clientHeight+"px";
       this.placeHolder.style.width = "100%";
-      this.mapWrapper.classList.add("sticky");
-      this.gridHead.classList.add("sticky-grid-heading");
+      this.stickyWrapper.classList.add("sticky");
     }
-    if (window.scrollY <= 150 && this.mapWrapper.classList.contains("sticky")){
-      this.mapWrapper.classList.toggle("sticky");
-      this.gridHead.classList.toggle("sticky-grid-heading");
+    if (window.scrollY <= 150 && this.stickyWrapper.classList.contains("sticky")){
+      this.stickyWrapper.classList.toggle("sticky");
       this.placeHolder.style.height = "0";
       this.placeHolder.style.width = "0";
     }
@@ -193,6 +197,121 @@ class App extends Component {
     }
   }
 
+  handleSortClick(buttonNum) {
+    var sortState = buttonNum;
+    var currentYelpPlaces = this.state.currentYelpPlaces;
+    var currentGooglePlaces = this.state.currentGooglePlaces;
+    var children = this.sortGroup.children;
+    for (var i = 0; i < children.length; i++) {
+      children[i].classList.remove("sort-button-clicked");
+    }
+    if (buttonNum === 1) {
+      this.sortReview.classList.add("sort-button-clicked");
+      currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
+        if (a.reviewCount === b.reviewCount) {
+          return b.rating - a.rating;
+        }
+        return b.reviewCount - a.reviewCount;
+      });
+    }
+    else if (buttonNum === 2) {
+      this.sortRating.classList.add("sort-button-clicked");
+      currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
+        if (a.rating === b.rating) {
+          return b.reviewCount - a.reviewCount;
+        }
+        return b.rating - a.rating;
+      });
+      currentGooglePlaces = currentGooglePlaces.sort(function(a, b) {
+        return b.rating - a.rating;
+      });
+    }
+    else if (buttonNum === 0) {
+      this.sortBestMatch.classList.add("sort-button-clicked");
+      var currentYelpPlaces = this.state.yelpPlacesBestMatch;
+      var currentGooglePlaces = this.state.googlePlacesBestMatch;
+    }
+    this.setState({currentGooglePlaces:currentGooglePlaces, currentYelpPlaces:currentYelpPlaces, sort:sortState});
+  }
+
+  handleFilterClick(filterNum) {
+    var filterState = this.state.filter;
+    var currentYelpPlaces = this.state.currentYelpPlaces;
+    var yelpPlacesBestMatch = this.state.yelpPlacesBestMatch;
+    var currentGooglePlaces = this.state.currentGooglePlaces;
+    var googlePlacesBestMatch = this.state.googlePlacesBestMatch;
+    var children = this.filterGroup.children;
+    if (filterNum !== 0) {
+      var priceLevel = "$".repeat(filterNum);
+      var yelpPriceList = [];
+      var googlePriceList = [];
+      if (filterState[filterNum]) {
+        if (filterNum === 1) {
+          this.filterPrice1.classList.remove("filter-button-clicked");
+        }
+        else if (filterNum === 2) {
+          this.filterPrice2.classList.remove("filter-button-clicked");
+        }
+        else if (filterNum === 3) {
+          this.filterPrice3.classList.remove("filter-button-clicked");
+        }
+        for (var i = 0; i < currentYelpPlaces.length; i++) {
+          if (currentYelpPlaces[i].priceLevel === priceLevel) {
+            currentYelpPlaces.splice(i,1);
+          }
+        }
+        for (var i = 0; i < currentGooglePlaces.length; i++) {
+          if (currentGooglePlaces[i].priceLevel === priceLevel) {
+            currentGooglePlaces.splice(i,1);
+          }
+        }
+        filterState[filterNum] = false;
+      }
+      else {
+        if (filterNum === 1) {
+          this.filterPrice1.classList.add("filter-button-clicked");
+        }
+        else if (filterNum === 2) {
+          this.filterPrice2.classList.add("filter-button-clicked");
+        }
+        else if (filterNum === 3) {
+          this.filterPrice3.classList.add("filter-button-clicked");
+        }
+        for (var i = 0; i < yelpPlacesBestMatch.length; i++) {
+          if (yelpPlacesBestMatch[i].priceLevel === priceLevel) {
+            yelpPriceList.push(yelpPlacesBestMatch[i]);
+          }
+        }
+        var currentYelpPlaces = currentYelpPlaces.concat(yelpPriceList);
+        for (var i = 0; i < googlePlacesBestMatch.length; i++) {
+          if (googlePlacesBestMatch[i].priceLevel === priceLevel) {
+            googlePriceList.push(googlePlacesBestMatch[i]);
+          }
+        }
+        var currentGooglePlaces = currentGooglePlaces.concat(googlePriceList);
+        filterState[filterNum] = true;
+      }
+    }
+    else {
+      if (filterState[filterNum]) {
+        this.filterYeggle.classList.add("filter-button-clicked");
+        var bothPlacesFormatted = this.state.bothPlacesFormatted;
+        var currentGooglePlaces = [];
+        var currentYelpPlaces = [];
+        for (var i = 0; i < bothPlacesFormatted; i++) {
+          currentGooglePlaces.push(bothPlacesFormatted[i].google);
+          currentYelpPlaces.push(bothPlacesFormatted[i].yelp);
+        }
+        this.setState({currentGooglePlaces:currentGooglePlaces, currentYelpPlaces:currentYelpPlaces});
+        this.handleSortClick(this.state.sort);
+      }
+      else {
+        this.filterYeggle.classList.remove("filter-button-clicked");
+      }
+    }
+    this.setState({currentGooglePlaces:currentGooglePlaces, currentYelpPlaces:currentYelpPlaces});
+  }
+
   handleChange() {
     this.places = this.searchBox.getPlaces();
   }
@@ -250,9 +369,9 @@ class App extends Component {
         diagMeters = 40000 * 2;
       }
     }
-    var yelpPlacesFormatted = [];
+    var yelpPlacesBestMatch = [];
     var googlePlaces = [];
-    var googlePlacesFormatted = [];
+    var googlePlacesBestMatch = [];
     var diagMeters;
     this.markers.forEach(function(marker) {
       marker.setMap(null);
@@ -331,15 +450,9 @@ class App extends Component {
                 else {
                   business.currStatus = 'Open now'
                 }
-                yelpPlacesFormatted.push(business);
+                yelpPlacesBestMatch.push(business);
               }
             }
-            yelpPlacesFormatted = yelpPlacesFormatted.sort(function(a, b) {
-              if (a.rating === b.rating) {
-                return b.reviewCount - a.reviewCount;
-              }
-              return b.rating - a.rating;
-            });
             callback();
           }).catch(e => {
             console.log(e);
@@ -363,9 +476,9 @@ class App extends Component {
           .then(res => res.json())
           .then(data => {
             var googlePlaces = data.results;
-            googlePlacesFormatted = formatGoogleResults(googlePlacesFormatted,bounds,googlePlaces);
+            googlePlacesBestMatch = formatGoogleResults(googlePlacesBestMatch,bounds,googlePlaces);
             paramGoogleJSON.pagetoken = data.next_page_token;
-            if (googlePlacesFormatted.length < 15) {
+            if (googlePlacesBestMatch.length < 15) {
               setTimeout( function() {
                 fetch('/googlesearch', {
                   method: 'POST',
@@ -374,14 +487,14 @@ class App extends Component {
                 .then(res1 => res1.json())
                 .then(data1 => {
                   googlePlaces = data1.results;
-                  googlePlacesFormatted = formatGoogleResults(googlePlacesFormatted,bounds,googlePlaces);
+                  googlePlacesBestMatch = formatGoogleResults(googlePlacesBestMatch,bounds,googlePlaces);
                   paramGoogleJSON.pagetoken = data1.next_page_token;
                   callback();
                 })
               }, 1600);
             }
             else {
-              this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlacesFormatted:yelpPlacesFormatted});
+              this.setState({googlePlacesBestMatch:googlePlacesBestMatch, yelpPlacesBestMatch:yelpPlacesBestMatch, currentGooglePlaces:googlePlacesBestMatch, currentYelpPlaces:yelpPlacesBestMatch});
               callback();
             }
           });
@@ -390,7 +503,7 @@ class App extends Component {
           var infoWindow = this.infoWindow;
           var bothPlacesFormatted = this.state.bothPlacesFormatted;
           bothPlacesFormatted = [];
-          googlePlacesFormatted = googlePlacesFormatted.sort(function(a, b) {
+          googlePlacesBestMatch = googlePlacesBestMatch.sort(function(a, b) {
             return b.rating - a.rating;
           });
           if (this.state.map !== undefined) {
@@ -398,20 +511,20 @@ class App extends Component {
             var contentString;
             var nestedGooglePlace;
             var numPlacesRemoved = 0;
-            var onlyGooglePlacesFormatted = googlePlacesFormatted.slice();
-            var onlyYelpPlacesFormatted = yelpPlacesFormatted.slice();
-            googlePlacesFormatted.forEach((googlePlace, gindex, garray) => {
+            var onlygooglePlacesBestMatch = googlePlacesBestMatch.slice();
+            var onlyyelpPlacesBestMatch = yelpPlacesBestMatch.slice();
+            googlePlacesBestMatch.forEach((googlePlace, gindex, garray) => {
               nestedGooglePlace = googlePlace;
               foundMatch = false;
-              yelpPlacesFormatted.forEach((yelpPlace, yindex, yarray) => {
+              yelpPlacesBestMatch.forEach((yelpPlace, yindex, yarray) => {
                 if (!foundMatch) {
                   if (placeMatch(googlePlace,yelpPlace)) {
                     bothPlacesFormatted.push({
                       google: nestedGooglePlace,
                       yelp: yelpPlace
                     });
-                    onlyGooglePlacesFormatted[gindex] = 0;
-                    onlyYelpPlacesFormatted[yindex] = 0;
+                    onlygooglePlacesBestMatch[gindex] = 0;
+                    onlyyelpPlacesBestMatch[yindex] = 0;
                     foundMatch = true;
                     var bothPlaceMarker = new google.maps.Marker({
                       map: map,
@@ -447,9 +560,9 @@ class App extends Component {
                 this.markers.push(googlePlaceMarker);
               }
             });
-            onlyYelpPlacesFormatted = onlyYelpPlacesFormatted.filter((a) => a !== 0);
-            onlyGooglePlacesFormatted = onlyGooglePlacesFormatted.filter((a) => a !== 0);
-            onlyYelpPlacesFormatted.forEach((yelpPlace, yindex, yarray) => {
+            onlyyelpPlacesBestMatch = onlyyelpPlacesBestMatch.filter((a) => a !== 0);
+            onlygooglePlacesBestMatch = onlygooglePlacesBestMatch.filter((a) => a !== 0);
+            onlyyelpPlacesBestMatch.forEach((yelpPlace, yindex, yarray) => {
               var yelpPlaceMarker = new google.maps.Marker({
                 map: map,
                 title: yelpPlace.name,
@@ -470,7 +583,11 @@ class App extends Component {
           this.loader.classList.remove("loader-activated");
           this.nonloaderEl.style.opacity = "1";
           this.loader.style.display = "none";
-          this.setState({googlePlacesFormatted:googlePlacesFormatted, yelpPlacesFormatted:yelpPlacesFormatted, bothPlacesFormatted:bothPlacesFormatted});
+          this.sortBestMatch.classList.add("sort-button-clicked");
+          this.filterPrice1.classList.add("filter-button-clicked");
+          this.filterPrice2.classList.add("filter-button-clicked");
+          this.filterPrice3.classList.add("filter-button-clicked");
+          this.setState({googlePlacesBestMatch:googlePlacesBestMatch, yelpPlacesBestMatch:yelpPlacesBestMatch, currentGooglePlaces:googlePlacesBestMatch, currentYelpPlaces:yelpPlacesBestMatch, bothPlacesFormatted:bothPlacesFormatted});
           callback();
         }
     ]);
@@ -480,25 +597,25 @@ class App extends Component {
     var placesJSX = [];
     var googlePlacesJSX = [];
     var yelpPlacesJSX = [];
-    if (this.state.googlePlacesFormatted !== undefined && this.state.googlePlacesFormatted !== null) {
-      var googlePlacesFormatted = this.state.googlePlacesFormatted;
-      var yelpPlacesFormatted = this.state.yelpPlacesFormatted;
+    if (this.state.currentGooglePlaces !== undefined && this.state.currentGooglePlaces!== null) {
+      var currentGooglePlaces = this.state.currentGooglePlaces;
+      var currentYelpPlaces = this.state.currentYelpPlaces;
       var i = 0;
       var googleStars;
-      while (i < Math.max(googlePlacesFormatted.length, yelpPlacesFormatted.length)) {
-        if (i < googlePlacesFormatted.length) {
-          if (googlePlacesFormatted[i].rating == "" || googlePlacesFormatted[i].rating == undefined) {
+      while (i < Math.max(currentGooglePlaces.length, currentYelpPlaces.length)) {
+        if (i < currentGooglePlaces.length) {
+          if (currentGooglePlaces[i].rating == "" || currentGooglePlaces[i].rating == undefined) {
             googleStars = "";
           }
           else {
-            googleStars = googlePlacesFormatted[i].rating + ' stars';
+            googleStars = currentGooglePlaces[i].rating + ' stars';
           }
           googlePlacesJSX.push(
             <div className="item2-right">
-              <h4><a href={googlePlacesFormatted[i].url} target="_blank">{googlePlacesFormatted[i].name}</a></h4>
-              <p>{googlePlacesFormatted[i].address}</p>
-              <p>{googlePlacesFormatted[i].currStatus}</p>
-              <p>{googlePlacesFormatted[i].priceLevel}</p>
+              <h4><a href={currentGooglePlaces[i].url} target="_blank">{currentGooglePlaces[i].name}</a></h4>
+              <p>{currentGooglePlaces[i].address}</p>
+              <p>{currentGooglePlaces[i].currStatus}</p>
+              <p>{currentGooglePlaces[i].priceLevel}</p>
               <p>{googleStars}</p>
             </div>
           );
@@ -508,15 +625,15 @@ class App extends Component {
             <div className="item2-right-empty"></div>
           );
         }
-        if (i < yelpPlacesFormatted.length) {
+        if (i < currentYelpPlaces.length) {
           yelpPlacesJSX.push(
             <div className="item2-left">
-              <h4><a href={yelpPlacesFormatted[i].url} target="_blank">{yelpPlacesFormatted[i].name}</a></h4>
-              <p>{yelpPlacesFormatted[i].address}</p>
-              <p>{yelpPlacesFormatted[i].currStatus}</p>
-              <p>{yelpPlacesFormatted[i].priceLevel}</p>
-              <p>{yelpPlacesFormatted[i].rating} stars</p>
-              <p>{yelpPlacesFormatted[i].reviewCount} reviews</p>
+              <h4><a href={currentYelpPlaces[i].url} target="_blank">{currentYelpPlaces[i].name}</a></h4>
+              <p>{currentYelpPlaces[i].address}</p>
+              <p>{currentYelpPlaces[i].currStatus}</p>
+              <p>{currentYelpPlaces[i].priceLevel}</p>
+              <p>{currentYelpPlaces[i].rating} stars</p>
+              <p>{currentYelpPlaces[i].reviewCount} reviews</p>
             </div>
           );
         }
@@ -547,17 +664,31 @@ class App extends Component {
               <input id="submit-button" type="submit"/>
             </form>
           </header>
-          <div id="map-wrapper" ref={(mapWrapper) => {this.mapWrapper = mapWrapper;}}>
+          <div id="sticky-wrapper" ref={(stickyWrapper) => {this.stickyWrapper = stickyWrapper;}}>
             <div id="map" ref={(map) => {this.map = map;}}></div>
-          </div>
-          <div className="grid1" ref={(gridHead) => {this.gridHead = gridHead;}}>
-            <div className="row1">
-              <div className="item1-left" ref={(yelpHead) => {this.yelpHead = yelpHead;}}>
-                <h3>Yelp</h3>
-              </div>
-              <div className="item1-center"></div>
-              <div className="item1-right" ref={(googleHead) => {this.googleHead = googleHead;}}>
-                <h3>Google</h3>
+            <div id="button-div">
+              <span className="sort-group" ref={(sortGroup) => {this.sortGroup = sortGroup;}}>
+                <button className="sort-button" onClick={() => this.handleSortClick(0)} ref={(sortBestMatch) => {this.sortBestMatch = sortBestMatch;}}>Best Match</button>
+                <button className="sort-button" onClick={() => this.handleSortClick(1)} ref={(sortReview) => {this.sortReview = sortReview;}}>Review Count</button>
+                <button className="sort-button" onClick={() => this.handleSortClick(2)} ref={(sortRating) => {this.sortRating = sortRating;}}>Rating</button>
+                <button className="sort-button" onClick={() => this.handleSortClick(3)} ref={(sortDistance) => {this.sortDistance = sortDistance;}}>Distance</button>
+              </span>
+              <span className="filter-group" ref={(filterGroup) => {this.filterGroup = filterGroup;}}>
+                <button className="filter-button" onClick={() => this.handleFilterClick(0)} ref={(filterYeggle) => {this.filterYeggle = filterYeggle;}}>Yeggle</button>
+                <button className="filter-button" onClick={() => this.handleFilterClick(1)} ref={(filterPrice1) => {this.filterPrice1 = filterPrice1;}}>$</button>
+                <button className="filter-button" onClick={() => this.handleFilterClick(2)} ref={(filterPrice2) => {this.filterPrice2 = filterPrice2;}}>$$</button>
+                <button className="filter-button" onClick={() => this.handleFilterClick(3)} ref={(filterPrice3) => {this.filterPrice3 = filterPrice3;}}>$$$</button>
+              </span>
+            </div>
+            <div className="grid1">
+              <div className="row1">
+                <div className="item1-left">
+                  <h3>Yelp</h3>
+                </div>
+                <div className="item1-center"></div>
+                <div className="item1-right">
+                  <h3>Google</h3>
+                </div>
               </div>
             </div>
           </div>
