@@ -904,18 +904,18 @@ class App extends Component {
           <div id="sticky-wrapper" ref={(stickyWrapper) => {this.stickyWrapper = stickyWrapper;}}>
             <div id="map" ref={(map) => {this.map = map;}}></div>
             <div id="button-div">
-              <span className="sort-group" ref={(sortGroup) => {this.sortGroup = sortGroup;}}>
+              <div className="sort-group" ref={(sortGroup) => {this.sortGroup = sortGroup;}}>
                 <button className="sort-button" onClick={() => this.handleSortClick(0)} ref={(sortBestMatch) => {this.sortBestMatch = sortBestMatch;}}>Best Match</button>
                 <button className="sort-button" onClick={() => this.handleSortClick(1)} ref={(sortReview) => {this.sortReview = sortReview;}}>Review Count</button>
                 <button className="sort-button" onClick={() => this.handleSortClick(2)} ref={(sortRating) => {this.sortRating = sortRating;}}>Rating</button>
                 <button className="sort-button" onClick={() => this.handleSortClick(3)} ref={(sortDistance) => {this.sortDistance = sortDistance;}}>Distance</button>
-              </span>
-              <span className="filter-group" ref={(filterGroup) => {this.filterGroup = filterGroup;}}>
+              </div>
+              <div className="filter-group" ref={(filterGroup) => {this.filterGroup = filterGroup;}}>
                 <button className="filter-button" onClick={() => this.handleFilterClick(0)} ref={(filterYeggle) => {this.filterYeggle = filterYeggle;}}>Yeggle</button>
                 <button className="filter-button" onClick={() => this.handleFilterClick(1)} ref={(filterPrice1) => {this.filterPrice1 = filterPrice1;}}>$</button>
                 <button className="filter-button" onClick={() => this.handleFilterClick(2)} ref={(filterPrice2) => {this.filterPrice2 = filterPrice2;}}>$$</button>
                 <button className="filter-button" onClick={() => this.handleFilterClick(3)} ref={(filterPrice3) => {this.filterPrice3 = filterPrice3;}}>$$$</button>
-              </span>
+              </div>
             </div>
             <div className="grid1">
               <div className="row1">
