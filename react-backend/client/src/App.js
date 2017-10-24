@@ -66,10 +66,13 @@ function placeMatch(googlePlace, yelpPlace) {
   return true;
 }
 
-function formatGoogleResults(googlePlacesBestMatch, bounds, googlePlaces) {
-  for (var i = 0; i < googlePlaces.length && googlePlacesBestMatch.length < 20; i++) {
+function formatGoogleResults(googlePlacesResults, bounds, googlePlaces) {
+  for (var i = 0; i < googlePlaces.length; i++) {
     if (googlePlaces[i].geometry.location.lat > bounds.lat.min && googlePlaces[i].geometry.location.lat < bounds.lat.max && googlePlaces[i].geometry.location.lng > bounds.lon.min && googlePlaces[i].geometry.location.lng < bounds.lon.max) {
       var priceLevel = '$'.repeat(googlePlaces[i].price_level);
+      if (googlePlaces[i].price_level == 0) {
+        priceLevel = '$';
+      }
       var currStatus;
       if (googlePlaces[i].opening_hours !== undefined) {
         if (googlePlaces[i].opening_hours.open_now) {
@@ -79,6 +82,9 @@ function formatGoogleResults(googlePlacesBestMatch, bounds, googlePlaces) {
           currStatus = 'Closed now'
         }
       }
+      var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
+      var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
+      var distance = getDistanceFromLatLonInM(latitude, longitude, googlePlaces[i].geometry.location.lat, googlePlaces[i].geometry.location.lng);
       var address = googlePlaces[i].vicinity;
       var place = {
         name: googlePlaces[i].name,
@@ -87,27 +93,29 @@ function formatGoogleResults(googlePlacesBestMatch, bounds, googlePlaces) {
         rating: googlePlaces[i].rating,
         priceLevel: priceLevel,
         currStatus: currStatus,
+        distance: distance,
         url: 'https://www.google.com/maps/search/?api=1&query=Google&query_place_id=' + googlePlaces[i].place_id
       };
-      googlePlacesBestMatch.push(place);
+      googlePlacesResults.push(place);
     }
   }
-  return googlePlacesBestMatch;
+  return googlePlacesResults;
 }
 
 class App extends Component {
   constructor() {
     super();
     this.state = {
-      googlePlacesBestMatch: [],
-      yelpPlacesBestMatch: [],
-      bothPlacesFormatted: [],
+      googlePlacesResults: [],
+      yelpPlacesResults: [],
+      bothPlacesResults: [],
       currentGooglePlaces: [],
       currentYelpPlaces: [],
-      sort: 0,
-      filter: [false,true,true,true]
+      sortStatus: 0,
+      filterStatus: [false,true,true,true]
     }
     this.markers = [];
+    this.maxLength = 15;
     this.initMap = this.initMap.bind(this);
     this.handleSearchClick = this.handleSearchClick.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
@@ -115,6 +123,9 @@ class App extends Component {
     this.handleScroll = this.handleScroll.bind(this);
     this.handleSortClick = this.handleSortClick.bind(this);
     this.handleFilterClick = this.handleFilterClick.bind(this);
+    this.filterResults = this.filterResults.bind(this);
+    this.sortResults = this.sortResults.bind(this);
+    this.makeMarkers = this.makeMarkers.bind(this);
   }
 
   componentDidMount() {
@@ -197,118 +208,297 @@ class App extends Component {
     }
   }
 
+  sortResults(currentYelpPlaces, currentGooglePlaces, sortState) {
+    var yeggle = this.state.filterStatus[0];
+    if (sortState === 0) {
+      return [currentYelpPlaces, currentGooglePlaces];
+    }
+    if (yeggle) {
+      var yeggleArr = [];
+      for (var i = 0; i < currentYelpPlaces.length; i++) {
+        yeggleArr.push({
+          yelp: currentYelpPlaces[i],
+          google: currentGooglePlaces[i]
+        });
+      }
+    }
+    if (sortState === 1) {
+      if (yeggle) {
+        yeggleArr = yeggleArr.sort(function(a, b) {
+          if (a.yelp.reviewCount === b.yelp.reviewCount) {
+            return b.yelp.rating - a.yelp.rating;
+          }
+          return b.yelp.reviewCount - a.yelp.reviewCount;
+        });
+      }
+      else {
+        currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
+          if (a.reviewCount === b.reviewCount) {
+            return b.rating - a.rating;
+          }
+          return b.reviewCount - a.reviewCount;
+        });
+      }
+    }
+    else if (sortState === 2) {
+      if (yeggle) {
+        yeggleArr = yeggleArr.sort(function(a, b) {
+          if (a.yelp.rating === b.yelp.rating) {
+            return b.yelp.reviewCount - a.yelp.reviewCount;
+          }
+          return b.yelp.rating - a.yelp.rating;
+        });
+      }
+      else {
+        currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
+          if (a.rating === b.rating) {
+            return b.reviewCount - a.reviewCount;
+          }
+          return b.rating - a.rating;
+        });
+        currentGooglePlaces = currentGooglePlaces.sort(function(a, b) {
+          return b.rating - a.rating;
+        });
+      }
+    }
+    else if (sortState === 3) {
+      if (yeggle) {
+        yeggleArr = yeggleArr.sort(function(a, b) {
+          return a.yelp.distance - b.yelp.distance;
+        });
+      }
+      else {
+        currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
+          return a.distance - b.distance;
+        });
+        currentGooglePlaces = currentGooglePlaces.sort(function(a, b) {
+          return a.distance - b.distance;
+        });
+      }
+    }
+    if (yeggle) {
+      currentGooglePlaces = [];
+      currentYelpPlaces = [];
+      for (var i = 0; i < yeggleArr.length; i++) {
+        currentYelpPlaces.push(yeggleArr[i].yelp)
+        currentGooglePlaces.push(yeggleArr[i].google)
+      }
+    }
+    return [currentYelpPlaces, currentGooglePlaces];
+  }
+
   handleSortClick(buttonNum) {
-    var sortState = buttonNum;
-    var currentYelpPlaces = this.state.currentYelpPlaces;
-    var currentGooglePlaces = this.state.currentGooglePlaces;
+
     var children = this.sortGroup.children;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.remove("sort-button-clicked");
     }
-    if (buttonNum === 1) {
+    var tempPlaceArray;
+    var yelpPlacesResults = this.state.yelpPlacesResults.slice();
+    var googlePlacesResults = this.state.googlePlacesResults.slice();
+    var bothPlacesResults = this.state.bothPlacesResults.slice();
+    var currentYelpPlaces = this.state.currentYelpPlaces.slice();
+    var currentGooglePlaces = this.state.currentGooglePlaces;
+    if (buttonNum === 0) {
+      this.sortBestMatch.classList.add("sort-button-clicked");
+      var filterState = this.state.filterStatus;
+      tempPlaceArray = this.filterResults(yelpPlacesResults, googlePlacesResults, bothPlacesResults, filterState);
+      currentYelpPlaces = tempPlaceArray[0].slice();
+      currentGooglePlaces = tempPlaceArray[1];
+    }
+    else if (buttonNum === 1) {
       this.sortReview.classList.add("sort-button-clicked");
-      currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
-        if (a.reviewCount === b.reviewCount) {
-          return b.rating - a.rating;
-        }
-        return b.reviewCount - a.reviewCount;
-      });
     }
     else if (buttonNum === 2) {
       this.sortRating.classList.add("sort-button-clicked");
-      currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
-        if (a.rating === b.rating) {
-          return b.reviewCount - a.reviewCount;
-        }
-        return b.rating - a.rating;
-      });
-      currentGooglePlaces = currentGooglePlaces.sort(function(a, b) {
-        return b.rating - a.rating;
-      });
     }
-    else if (buttonNum === 0) {
-      this.sortBestMatch.classList.add("sort-button-clicked");
-      var currentYelpPlaces = this.state.yelpPlacesBestMatch;
-      var currentGooglePlaces = this.state.googlePlacesBestMatch;
+    else if (buttonNum === 3) {
+      this.sortDistance.classList.add("sort-button-clicked");
     }
-    this.setState({currentGooglePlaces:currentGooglePlaces, currentYelpPlaces:currentYelpPlaces, sort:sortState});
+    this.setState({sortStatus:buttonNum});
+    var temp1PlaceArray = this.sortResults(currentYelpPlaces, currentGooglePlaces, buttonNum);
+    currentYelpPlaces = temp1PlaceArray[0].slice();
+    currentGooglePlaces = temp1PlaceArray[1].slice();
+    this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
+    this.setState({currentYelpPlaces:currentYelpPlaces, currentGooglePlaces:currentGooglePlaces});
   }
 
-  handleFilterClick(filterNum) {
-    var filterState = this.state.filter;
-    var currentYelpPlaces = this.state.currentYelpPlaces;
-    var yelpPlacesBestMatch = this.state.yelpPlacesBestMatch;
-    var currentGooglePlaces = this.state.currentGooglePlaces;
-    var googlePlacesBestMatch = this.state.googlePlacesBestMatch;
-    var children = this.filterGroup.children;
-    if (filterNum !== 0) {
-      var priceLevel = "$".repeat(filterNum);
-      var yelpPriceList = [];
-      var googlePriceList = [];
-      if (filterState[filterNum]) {
-        if (filterNum === 1) {
-          this.filterPrice1.classList.remove("filter-button-clicked");
-        }
-        else if (filterNum === 2) {
-          this.filterPrice2.classList.remove("filter-button-clicked");
-        }
-        else if (filterNum === 3) {
-          this.filterPrice3.classList.remove("filter-button-clicked");
-        }
-        for (var i = 0; i < currentYelpPlaces.length; i++) {
-          if (currentYelpPlaces[i].priceLevel === priceLevel) {
+  filterResults(yelpPlacesResults, googlePlacesResults, bothPlacesResults, filterState) {
+    var currentYelpPlaces = yelpPlacesResults.slice();
+    var currentGooglePlaces = googlePlacesResults.slice();
+    var priceLevel;
+    var yeggle = filterState[0];
+    if (yeggle) {
+      currentYelpPlaces = [];
+      currentGooglePlaces = [];
+      for (var i = 0; i < bothPlacesResults.length; i++) {
+        currentYelpPlaces.push(bothPlacesResults[i].yelp);
+        currentGooglePlaces.push(bothPlacesResults[i].google);
+      }
+    }
+    if (filterState[1] === false) {
+      priceLevel = "$";
+      var i = 0;
+      while (i < currentYelpPlaces.length) {
+        if (currentYelpPlaces[i].priceLevel === priceLevel) {
+          if (yeggle) {
+            if (currentGooglePlaces[i].priceLevel === priceLevel) {
+              currentGooglePlaces.splice(i,1);
+              currentYelpPlaces.splice(i,1);
+            }
+            else {
+              i++;
+            }
+          }
+          else {
             currentYelpPlaces.splice(i,1);
           }
         }
-        for (var i = 0; i < currentGooglePlaces.length; i++) {
-          if (currentGooglePlaces[i].priceLevel === priceLevel) {
+        else {
+          i++;
+        }
+      }
+      console.log(currentYelpPlaces);
+      i = 0;
+      while (i < currentGooglePlaces.length) {
+        if (currentGooglePlaces[i].priceLevel === priceLevel) {
+          if (!yeggle) {
             currentGooglePlaces.splice(i,1);
           }
+          else {
+            i++;
+          }
         }
-        filterState[filterNum] = false;
+        else {
+          i++;
+        }
       }
-      else {
-        if (filterNum === 1) {
-          this.filterPrice1.classList.add("filter-button-clicked");
-        }
-        else if (filterNum === 2) {
-          this.filterPrice2.classList.add("filter-button-clicked");
-        }
-        else if (filterNum === 3) {
-          this.filterPrice3.classList.add("filter-button-clicked");
-        }
-        for (var i = 0; i < yelpPlacesBestMatch.length; i++) {
-          if (yelpPlacesBestMatch[i].priceLevel === priceLevel) {
-            yelpPriceList.push(yelpPlacesBestMatch[i]);
+    }
+    if (filterState[2] === false) {
+      priceLevel = "$$";
+      i = 0;
+      while (i < currentYelpPlaces.length) {
+        if (currentYelpPlaces[i].priceLevel === priceLevel) {
+          if (yeggle) {
+            if (currentGooglePlaces[i].priceLevel === priceLevel) {
+              currentGooglePlaces.splice(i,1);
+              currentYelpPlaces.splice(i,1);
+            }
+            else {
+              i++;
+            }
+          }
+          else {
+            currentYelpPlaces.splice(i,1);
           }
         }
-        var currentYelpPlaces = currentYelpPlaces.concat(yelpPriceList);
-        for (var i = 0; i < googlePlacesBestMatch.length; i++) {
-          if (googlePlacesBestMatch[i].priceLevel === priceLevel) {
-            googlePriceList.push(googlePlacesBestMatch[i]);
+        else {
+          i++;
+        }
+      }
+      i = 0;
+      while (i < currentGooglePlaces.length) {
+        if (currentGooglePlaces[i].priceLevel === priceLevel) {
+          if (!yeggle) {
+            currentGooglePlaces.splice(i,1);
+          }
+          else {
+            i++;
           }
         }
-        var currentGooglePlaces = currentGooglePlaces.concat(googlePriceList);
-        filterState[filterNum] = true;
+        else {
+          i++;
+        }
+      }
+    }
+    if (filterState[3] === false) {
+      priceLevel = "$$$";
+      i = 0;
+      while (i < currentYelpPlaces.length) {
+        if (currentYelpPlaces[i].priceLevel === priceLevel) {
+          if (yeggle) {
+            if (currentGooglePlaces[i].priceLevel === priceLevel) {
+              currentGooglePlaces.splice(i,1);
+              currentYelpPlaces.splice(i,1);
+            }
+            else {
+              i++;
+            }
+          }
+          else {
+            currentYelpPlaces.splice(i,1);
+          }
+        }
+        else {
+          i++;
+        }
+      }
+      i = 0;
+      while (i < currentGooglePlaces.length) {
+        if (currentGooglePlaces[i].priceLevel === priceLevel) {
+          if (!yeggle) {
+            currentGooglePlaces.splice(i,1);
+          }
+          else {
+            i++;
+          }
+        }
+        else {
+          i++;
+        }
+      }
+    }
+    console.log(currentYelpPlaces);
+    return [currentYelpPlaces, currentGooglePlaces];
+  }
+
+  handleFilterClick(filterNum) {
+    var filterState = this.state.filterStatus;
+    if (filterState[filterNum]) {
+      filterState[filterNum] = false;
+      this.setState({filterStatus:filterState});
+      if (filterNum === 0) {
+        this.filterYeggle.classList.remove("filter-button-clicked");
+      }
+      else if (filterNum === 1) {
+        this.filterPrice1.classList.remove("filter-button-clicked");
+      }
+      else if (filterNum === 2) {
+        this.filterPrice2.classList.remove("filter-button-clicked");
+      }
+      else if (filterNum === 3) {
+        this.filterPrice3.classList.remove("filter-button-clicked");
       }
     }
     else {
-      if (filterState[filterNum]) {
+      filterState[filterNum] = true;
+      this.setState({filterStatus:filterState});
+      if (filterNum === 0) {
         this.filterYeggle.classList.add("filter-button-clicked");
-        var bothPlacesFormatted = this.state.bothPlacesFormatted;
-        var currentGooglePlaces = [];
-        var currentYelpPlaces = [];
-        for (var i = 0; i < bothPlacesFormatted; i++) {
-          currentGooglePlaces.push(bothPlacesFormatted[i].google);
-          currentYelpPlaces.push(bothPlacesFormatted[i].yelp);
-        }
-        this.setState({currentGooglePlaces:currentGooglePlaces, currentYelpPlaces:currentYelpPlaces});
-        this.handleSortClick(this.state.sort);
       }
-      else {
-        this.filterYeggle.classList.remove("filter-button-clicked");
+      else if (filterNum === 1) {
+        this.filterPrice1.classList.add("filter-button-clicked");
+      }
+      else if (filterNum === 2) {
+        this.filterPrice2.classList.add("filter-button-clicked");
+      }
+      else if (filterNum === 3) {
+        this.filterPrice3.classList.add("filter-button-clicked");
       }
     }
+
+    var yelpPlacesResults = this.state.yelpPlacesResults.slice();
+    var googlePlacesResults = this.state.googlePlacesResults.slice();
+    var bothPlacesResults = this.state.bothPlacesResults.slice();
+    var tempPlaceArray = this.filterResults(yelpPlacesResults,googlePlacesResults,bothPlacesResults, filterState);
+    var currentYelpPlaces = tempPlaceArray[0].slice();
+    var currentGooglePlaces = tempPlaceArray[1].slice();
+    console.log(currentYelpPlaces);
+    var sortState = this.state.sortStatus;
+    var temp1PlaceArray = this.sortResults(currentYelpPlaces, currentGooglePlaces, sortState);
+    currentYelpPlaces = temp1PlaceArray[0].slice();
+    currentGooglePlaces = temp1PlaceArray[1].slice();
+    this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
     this.setState({currentGooglePlaces:currentGooglePlaces, currentYelpPlaces:currentYelpPlaces});
   }
 
@@ -323,6 +513,7 @@ class App extends Component {
     this.nonloaderEl.style.opacity = "0.2";
     this.loader.classList.add("loader-activated");
     this.loader.style.display = "block";
+    document.getElementById('disablingDiv').style.display='block';
 
     const google = window.google;
     var map = this.state.map;
@@ -369,14 +560,10 @@ class App extends Component {
         diagMeters = 40000 * 2;
       }
     }
-    var yelpPlacesBestMatch = [];
+    var yelpPlacesResults = [];
     var googlePlaces = [];
-    var googlePlacesBestMatch = [];
+    var googlePlacesResults = [];
     var diagMeters;
-    this.markers.forEach(function(marker) {
-      marker.setMap(null);
-    });
-    this.markers = [];
     async.series([
       (callback) => {
         if (this.locationBoxEl !== "" && places === undefined) {
@@ -389,7 +576,6 @@ class App extends Component {
           })
           .then(res => res.json())
           .then(data => {
-            console.log(data);
             if (data.results[0] !== undefined) {
               map.setCenter(data.results[0].geometry.location);
             }
@@ -421,7 +607,8 @@ class App extends Component {
             term: this.searchBoxEl.value,
             latitude: (bounds.lat.min + bounds.lat.max) / 2.0,
             longitude: (bounds.lon.min + bounds.lon.max) / 2.0,
-            radius: Math.floor(diagMeters / 2.0)
+            radius: Math.floor(diagMeters / 2.0),
+            limit: 50
           }
           fetch('/yelpsearch', {
             method: 'POST',
@@ -441,16 +628,11 @@ class App extends Component {
                     lat: yelpPlaces[i].coordinates.latitude,
                     lng: yelpPlaces[i].coordinates.longitude
                   },
+                  distance: yelpPlaces[i].distance,
                   address: yelpPlaces[i].location.display_address[0] + ', ' + yelpPlaces[i].location.display_address[1],
                   url: 'https://www.yelp.com/biz/' + yelpPlaces[i].id
                 };
-                if (yelpPlaces[i].is_closed) {
-                  business.currStatus = 'Closed now'
-                }
-                else {
-                  business.currStatus = 'Open now'
-                }
-                yelpPlacesBestMatch.push(business);
+                yelpPlacesResults.push(business);
               }
             }
             callback();
@@ -476,9 +658,10 @@ class App extends Component {
           .then(res => res.json())
           .then(data => {
             var googlePlaces = data.results;
-            googlePlacesBestMatch = formatGoogleResults(googlePlacesBestMatch,bounds,googlePlaces);
+            var googlePlacesLength = googlePlaces.length;
+            googlePlacesResults = formatGoogleResults(googlePlacesResults,bounds,googlePlaces);
             paramGoogleJSON.pagetoken = data.next_page_token;
-            if (googlePlacesBestMatch.length < 15) {
+            if (googlePlacesLength === 20) {
               setTimeout( function() {
                 fetch('/googlesearch', {
                   method: 'POST',
@@ -487,110 +670,165 @@ class App extends Component {
                 .then(res1 => res1.json())
                 .then(data1 => {
                   googlePlaces = data1.results;
-                  googlePlacesBestMatch = formatGoogleResults(googlePlacesBestMatch,bounds,googlePlaces);
+                  googlePlacesResults = formatGoogleResults(googlePlacesResults,bounds,googlePlaces);
                   paramGoogleJSON.pagetoken = data1.next_page_token;
                   callback();
                 })
               }, 1600);
             }
             else {
-              this.setState({googlePlacesBestMatch:googlePlacesBestMatch, yelpPlacesBestMatch:yelpPlacesBestMatch, currentGooglePlaces:googlePlacesBestMatch, currentYelpPlaces:yelpPlacesBestMatch});
               callback();
             }
           });
         },
         (callback) => {
-          var infoWindow = this.infoWindow;
-          var bothPlacesFormatted = this.state.bothPlacesFormatted;
-          bothPlacesFormatted = [];
-          googlePlacesBestMatch = googlePlacesBestMatch.sort(function(a, b) {
-            return b.rating - a.rating;
-          });
-          if (this.state.map !== undefined) {
-            var foundMatch;
-            var contentString;
-            var nestedGooglePlace;
-            var numPlacesRemoved = 0;
-            var onlygooglePlacesBestMatch = googlePlacesBestMatch.slice();
-            var onlyyelpPlacesBestMatch = yelpPlacesBestMatch.slice();
-            googlePlacesBestMatch.forEach((googlePlace, gindex, garray) => {
-              nestedGooglePlace = googlePlace;
-              foundMatch = false;
-              yelpPlacesBestMatch.forEach((yelpPlace, yindex, yarray) => {
-                if (!foundMatch) {
-                  if (placeMatch(googlePlace,yelpPlace)) {
-                    bothPlacesFormatted.push({
-                      google: nestedGooglePlace,
-                      yelp: yelpPlace
-                    });
-                    onlygooglePlacesBestMatch[gindex] = 0;
-                    onlyyelpPlacesBestMatch[yindex] = 0;
-                    foundMatch = true;
-                    var bothPlaceMarker = new google.maps.Marker({
-                      map: map,
-                      title: nestedGooglePlace.name,
-                      position: nestedGooglePlace.location,
-                      icon: this.icons.yeggle.icon,
-                      content: '<h3>' + googlePlace.name + '</h3>' +
-                      '<p>' + 'Google: ' + googlePlace.rating + '<br>' +
-                      'Yelp: ' + yelpPlace.rating + '</p>'
-                    });
-                    google.maps.event.addListener(bothPlaceMarker, 'click', function() {
-                      infoWindow.setContent(bothPlaceMarker.content);
-                      infoWindow.open(map, bothPlaceMarker);
-                    });
-                    this.markers.push(bothPlaceMarker);
-                  }
-                }
-              });
+          var foundMatch;
+          var bothPlacesResults = [];
+          yelpPlacesResults.forEach((yelpPlace, yindex, yarray) => {
+            foundMatch = false;
+            googlePlacesResults.forEach((googlePlace, gindex, garray) => {
               if (!foundMatch) {
-                var googlePlaceMarker = new google.maps.Marker({
-                  map: map,
-                  title: googlePlace.name,
-                  position: googlePlace.location,
-                  icon: this.icons.google.icon,
-                  optimized: false,
-                  content: '<h3>' + googlePlace.name + '</h3>' +
-                  '<p>' + 'Google: ' + googlePlace.rating + '</p>'
-                });
-                google.maps.event.addListener(googlePlaceMarker, 'click', function() {
-                  infoWindow.setContent(googlePlaceMarker.content);
-                  infoWindow.open(map, googlePlaceMarker);
-                });
-                this.markers.push(googlePlaceMarker);
+                if (placeMatch(googlePlace,yelpPlace)) {
+                  bothPlacesResults.push({
+                    yelp: yelpPlace,
+                    google: googlePlace
+                  });
+                  foundMatch = true;
+                }
               }
             });
-            onlyyelpPlacesBestMatch = onlyyelpPlacesBestMatch.filter((a) => a !== 0);
-            onlygooglePlacesBestMatch = onlygooglePlacesBestMatch.filter((a) => a !== 0);
-            onlyyelpPlacesBestMatch.forEach((yelpPlace, yindex, yarray) => {
-              var yelpPlaceMarker = new google.maps.Marker({
-                map: map,
-                title: yelpPlace.name,
-                position: yelpPlace.location,
-                icon: this.icons.yelp.icon,
-                optimized: false,
-                content: '<h3>' + yelpPlace.name + '</h3>' +
-                '<p>' + 'Yelp: ' + yelpPlace.rating + '</p>'
-              });
-              google.maps.event.addListener(yelpPlaceMarker, 'click', function() {
-                infoWindow.setContent(yelpPlaceMarker.content);
-                infoWindow.open(map, yelpPlaceMarker);
-              });
-              this.markers.push(yelpPlaceMarker);
-            });
-          }
+          });
+          var filterState = this.state.filterStatus;
+          var tempPlaceArray = this.filterResults(yelpPlacesResults, googlePlacesResults, bothPlacesResults, filterState);
+          var currentYelpPlaces = tempPlaceArray[0];
+          var currentGooglePlaces = tempPlaceArray[1];
+          tempPlaceArray = this.sortResults(currentYelpPlaces, currentGooglePlaces, this.state.sortStatus);
+          var currentYelpPlaces = tempPlaceArray[0];
+          var currentGooglePlaces = tempPlaceArray[1];
+          this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
+
+
+
           this.locationBoxEl.value = "";
           this.loader.classList.remove("loader-activated");
           this.nonloaderEl.style.opacity = "1";
           this.loader.style.display = "none";
-          this.sortBestMatch.classList.add("sort-button-clicked");
-          this.filterPrice1.classList.add("filter-button-clicked");
-          this.filterPrice2.classList.add("filter-button-clicked");
-          this.filterPrice3.classList.add("filter-button-clicked");
-          this.setState({googlePlacesBestMatch:googlePlacesBestMatch, yelpPlacesBestMatch:yelpPlacesBestMatch, currentGooglePlaces:googlePlacesBestMatch, currentYelpPlaces:yelpPlacesBestMatch, bothPlacesFormatted:bothPlacesFormatted});
+          document.getElementById('disablingDiv').style.display='none';
+          if (this.state.sortStatus === 0 && this.state.filterStatus[0] === false && this.state.filterStatus[1] === true && this.state.filterStatus[2] === true && this.state.filterStatus[3] === true) {
+            this.sortBestMatch.classList.add("sort-button-clicked");
+            this.filterPrice1.classList.add("filter-button-clicked");
+            this.filterPrice2.classList.add("filter-button-clicked");
+            this.filterPrice3.classList.add("filter-button-clicked");
+          }
+          this.setState({googlePlacesResults:googlePlacesResults, yelpPlacesResults:yelpPlacesResults, bothPlacesResults:bothPlacesResults, currentYelpPlaces: currentYelpPlaces, currentGooglePlaces:currentGooglePlaces});
           callback();
         }
     ]);
+  }
+
+  makeMarkers(currentYelpPlaces, currentGooglePlaces) {
+    var map = this.state.map;
+    const google = window.google;
+    var infoWindow = this.infoWindow;
+    var currentYelpPlaces = currentYelpPlaces.slice(0, this.maxLength);
+    var currentGooglePlaces = currentGooglePlaces.slice(0, this.maxLength);
+    var bothPlacesResults = [];
+    if (this.state.map !== undefined) {
+      this.markers.forEach(function(marker) {
+        marker.setMap(null);
+      });
+      this.markers = [];
+      var foundMatch;
+      if (this.state.filterStatus[0]) {
+        for (var i = 0; i < currentYelpPlaces.length; i++) {
+          var bothPlaceMarker = new google.maps.Marker({
+            map: map,
+            title: currentGooglePlaces[i].name,
+            position: currentGooglePlaces[i].location,
+            icon: this.icons.yeggle.icon,
+            content: '<h3>' + currentGooglePlaces[i].name + '</h3>' +
+            '<p>' + 'Google: ' + currentGooglePlaces[i].rating + '<br>' +
+            'Yelp: ' + currentYelpPlaces[i].rating + '</p>'
+          });
+          google.maps.event.addListener(bothPlaceMarker, 'click', function() {
+            infoWindow.setContent(bothPlaceMarker.content);
+            infoWindow.open(map, bothPlaceMarker);
+          });
+          this.markers.push(bothPlaceMarker);
+          console.log("hey");
+        }
+      }
+      else {
+        var onlyGooglePlacesResults = currentGooglePlaces.slice();
+        var onlyYelpPlacesResults = currentYelpPlaces.slice();
+        currentGooglePlaces.forEach((googlePlace, gindex, garray) => {
+          foundMatch = false;
+          currentYelpPlaces.forEach((yelpPlace, yindex, yarray) => {
+            if (yindex < this.maxLength) {
+              if (!foundMatch) {
+                if (placeMatch(googlePlace,yelpPlace)) {
+                  bothPlacesResults.push({
+                    google: googlePlace,
+                    yelp: yelpPlace
+                  });
+                  onlyGooglePlacesResults[gindex] = 0;
+                  onlyYelpPlacesResults[yindex] = 0;
+                  foundMatch = true;
+                  var bothPlaceMarker = new google.maps.Marker({
+                    map: map,
+                    title: googlePlace.name,
+                    position: googlePlace.location,
+                    icon: this.icons.yeggle.icon,
+                    content: '<h3>' + googlePlace.name + '</h3>' +
+                    '<p>' + 'Google: ' + googlePlace.rating + '<br>' +
+                    'Yelp: ' + yelpPlace.rating + '</p>'
+                  });
+                  google.maps.event.addListener(bothPlaceMarker, 'click', function() {
+                    infoWindow.setContent(bothPlaceMarker.content);
+                    infoWindow.open(map, bothPlaceMarker);
+                  });
+                  this.markers.push(bothPlaceMarker);
+                }
+              }
+            }
+          });
+          if (!foundMatch) {
+            var googlePlaceMarker = new google.maps.Marker({
+              map: map,
+              title: googlePlace.name,
+              position: googlePlace.location,
+              icon: this.icons.google.icon,
+              optimized: false,
+              content: '<h3>' + googlePlace.name + '</h3>' +
+              '<p>' + 'Google: ' + googlePlace.rating + '</p>'
+            });
+            google.maps.event.addListener(googlePlaceMarker, 'click', function() {
+              infoWindow.setContent(googlePlaceMarker.content);
+              infoWindow.open(map, googlePlaceMarker);
+            });
+            this.markers.push(googlePlaceMarker);
+          }
+        });
+        onlyYelpPlacesResults = onlyYelpPlacesResults.filter((a) => a !== 0);
+        onlyGooglePlacesResults = onlyGooglePlacesResults.filter((a) => a !== 0);
+        onlyYelpPlacesResults.forEach((yelpPlace, yindex, yarray) => {
+          var yelpPlaceMarker = new google.maps.Marker({
+            map: map,
+            title: yelpPlace.name,
+            position: yelpPlace.location,
+            icon: this.icons.yelp.icon,
+            optimized: false,
+            content: '<h3>' + yelpPlace.name + '</h3>' +
+            '<p>' + 'Yelp: ' + yelpPlace.rating + '</p>'
+          });
+          google.maps.event.addListener(yelpPlaceMarker, 'click', function() {
+            infoWindow.setContent(yelpPlaceMarker.content);
+            infoWindow.open(map, yelpPlaceMarker);
+          });
+          this.markers.push(yelpPlaceMarker);
+        });
+      }
+    }
   }
 
   render() {
@@ -602,7 +840,7 @@ class App extends Component {
       var currentYelpPlaces = this.state.currentYelpPlaces;
       var i = 0;
       var googleStars;
-      while (i < Math.max(currentGooglePlaces.length, currentYelpPlaces.length)) {
+      while (i < Math.max(currentGooglePlaces.length, currentYelpPlaces.length) && i < this.maxLength) {
         if (i < currentGooglePlaces.length) {
           if (currentGooglePlaces[i].rating == "" || currentGooglePlaces[i].rating == undefined) {
             googleStars = "";
@@ -614,9 +852,9 @@ class App extends Component {
             <div className="item2-right">
               <h4><a href={currentGooglePlaces[i].url} target="_blank">{currentGooglePlaces[i].name}</a></h4>
               <p>{currentGooglePlaces[i].address}</p>
-              <p>{currentGooglePlaces[i].currStatus}</p>
               <p>{currentGooglePlaces[i].priceLevel}</p>
               <p>{googleStars}</p>
+              <p>{currentGooglePlaces[i].currStatus}</p>
             </div>
           );
         }
@@ -630,7 +868,6 @@ class App extends Component {
             <div className="item2-left">
               <h4><a href={currentYelpPlaces[i].url} target="_blank">{currentYelpPlaces[i].name}</a></h4>
               <p>{currentYelpPlaces[i].address}</p>
-              <p>{currentYelpPlaces[i].currStatus}</p>
               <p>{currentYelpPlaces[i].priceLevel}</p>
               <p>{currentYelpPlaces[i].rating} stars</p>
               <p>{currentYelpPlaces[i].reviewCount} reviews</p>
