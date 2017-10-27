@@ -60,7 +60,7 @@ function placeMatch(googlePlace, yelpPlace) {
     return true;
   }
 
-  if (nameMatch/i*1.0 < 0.5) {
+  if (nameMatch/i*1.0 <= 0.5) {
     return false;
   }
   return true;
