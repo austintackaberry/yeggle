@@ -228,6 +228,7 @@ input {
   border:0px solid #e9ebee;
   padding: 4px;
   width: 25%;
+  max-width: 250px;
   min-width: 185px;
   outline-width: 0;
   border-radius: 2px;
