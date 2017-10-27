@@ -44,20 +44,20 @@ function placeMatch(googlePlace, yelpPlace) {
   }
   var googleAddressArr = googlePlace.address.split(' ');
   var yelpAddressArr = yelpPlace.address.split(' ');
-  i = 0;
+  if (googleAddressArr[1] !== yelpAddressArr[1]) {
+    return false;
+  }
+  var j = 0;
   var addressMatch = 0;
-  while (i < Math.min(googleAddressArr.length, yelpAddressArr.length)){
-    if (googleAddressArr[i] == yelpAddressArr[i]) {
+  while (j < 2){
+    if (googleAddressArr[j] == yelpAddressArr[j]) {
       addressMatch++;
     }
-    i++;
+    j++;
   }
 
-  if (addressMatch >= 2) {
+  if (addressMatch === 2) {
     return true;
-  }
-  else {
-    return false;
   }
 
   if (nameMatch/i*1.0 < 0.5) {
@@ -126,6 +126,7 @@ class App extends Component {
     this.filterResults = this.filterResults.bind(this);
     this.sortResults = this.sortResults.bind(this);
     this.makeMarkers = this.makeMarkers.bind(this);
+    this.addMarkerListener = this.addMarkerListener.bind(this);
   }
 
   componentDidMount() {
@@ -358,7 +359,6 @@ class App extends Component {
           i++;
         }
       }
-      console.log(currentYelpPlaces);
       i = 0;
       while (i < currentGooglePlaces.length) {
         if (currentGooglePlaces[i].priceLevel === priceLevel) {
@@ -448,7 +448,6 @@ class App extends Component {
         }
       }
     }
-    console.log(currentYelpPlaces);
     return [currentYelpPlaces, currentGooglePlaces];
   }
 
@@ -493,7 +492,6 @@ class App extends Component {
     var tempPlaceArray = this.filterResults(yelpPlacesResults,googlePlacesResults,bothPlacesResults, filterState);
     var currentYelpPlaces = tempPlaceArray[0].slice();
     var currentGooglePlaces = tempPlaceArray[1].slice();
-    console.log(currentYelpPlaces);
     var sortState = this.state.sortStatus;
     var temp1PlaceArray = this.sortResults(currentYelpPlaces, currentGooglePlaces, sortState);
     currentYelpPlaces = temp1PlaceArray[0].slice();
@@ -726,6 +724,17 @@ class App extends Component {
     ]);
   }
 
+  addMarkerListener(newMarker) {
+    var map = this.state.map;
+    const google = window.google;
+    var infoWindow = this.infoWindow;
+    google.maps.event.addListener(newMarker, 'click', function() {
+      infoWindow.setContent(newMarker.content);
+      infoWindow.open(map, newMarker);
+    });
+    this.markers.push(newMarker);
+  }
+
   makeMarkers(currentYelpPlaces, currentGooglePlaces) {
     var map = this.state.map;
     const google = window.google;
@@ -750,11 +759,7 @@ class App extends Component {
             '<p>' + 'Google: ' + currentGooglePlaces[i].rating + '<br>' +
             'Yelp: ' + currentYelpPlaces[i].rating + '</p>'
           });
-          google.maps.event.addListener(bothPlaceMarker, 'click', function() {
-            infoWindow.setContent(bothPlaceMarker.content);
-            infoWindow.open(map, bothPlaceMarker);
-          });
-          this.markers.push(bothPlaceMarker);
+          this.addMarkerListener(bothPlaceMarker);
         }
       }
       else {
@@ -763,31 +768,25 @@ class App extends Component {
         currentGooglePlaces.forEach((googlePlace, gindex, garray) => {
           foundMatch = false;
           currentYelpPlaces.forEach((yelpPlace, yindex, yarray) => {
-            if (yindex < this.maxLength) {
-              if (!foundMatch) {
-                if (placeMatch(googlePlace,yelpPlace)) {
-                  bothPlacesResults.push({
-                    google: googlePlace,
-                    yelp: yelpPlace
-                  });
-                  onlyGooglePlacesResults[gindex] = 0;
-                  onlyYelpPlacesResults[yindex] = 0;
-                  foundMatch = true;
-                  var bothPlaceMarker = new google.maps.Marker({
-                    map: map,
-                    title: googlePlace.name,
-                    position: googlePlace.location,
-                    icon: this.icons.yeggle.icon,
-                    content: '<h3>' + googlePlace.name + '</h3>' +
-                    '<p>' + 'Google: ' + googlePlace.rating + '<br>' +
-                    'Yelp: ' + yelpPlace.rating + '</p>'
-                  });
-                  google.maps.event.addListener(bothPlaceMarker, 'click', function() {
-                    infoWindow.setContent(bothPlaceMarker.content);
-                    infoWindow.open(map, bothPlaceMarker);
-                  });
-                  this.markers.push(bothPlaceMarker);
-                }
+            if (!foundMatch) {
+              if (placeMatch(googlePlace,yelpPlace)) {
+                bothPlacesResults.push({
+                  google: googlePlace,
+                  yelp: yelpPlace
+                });
+                onlyGooglePlacesResults[gindex] = 0;
+                onlyYelpPlacesResults[yindex] = 0;
+                foundMatch = true;
+                var bothPlaceMarker = new google.maps.Marker({
+                  map: map,
+                  title: googlePlace.name,
+                  position: googlePlace.location,
+                  icon: this.icons.yeggle.icon,
+                  content: '<h3>' + googlePlace.name + '</h3>' +
+                  '<p>' + 'Google: ' + googlePlace.rating + '<br>' +
+                  'Yelp: ' + yelpPlace.rating + '</p>'
+                });
+                this.addMarkerListener(bothPlaceMarker);
               }
             }
           });
@@ -801,11 +800,7 @@ class App extends Component {
               content: '<h3>' + googlePlace.name + '</h3>' +
               '<p>' + 'Google: ' + googlePlace.rating + '</p>'
             });
-            google.maps.event.addListener(googlePlaceMarker, 'click', function() {
-              infoWindow.setContent(googlePlaceMarker.content);
-              infoWindow.open(map, googlePlaceMarker);
-            });
-            this.markers.push(googlePlaceMarker);
+            this.addMarkerListener(googlePlaceMarker);
           }
         });
         onlyYelpPlacesResults = onlyYelpPlacesResults.filter((a) => a !== 0);
@@ -820,11 +815,7 @@ class App extends Component {
             content: '<h3>' + yelpPlace.name + '</h3>' +
             '<p>' + 'Yelp: ' + yelpPlace.rating + '</p>'
           });
-          google.maps.event.addListener(yelpPlaceMarker, 'click', function() {
-            infoWindow.setContent(yelpPlaceMarker.content);
-            infoWindow.open(map, yelpPlaceMarker);
-          });
-          this.markers.push(yelpPlaceMarker);
+          this.addMarkerListener(yelpPlaceMarker);
         });
       }
     }
@@ -904,16 +895,16 @@ class App extends Component {
             <div id="map" ref={(map) => {this.map = map;}}></div>
             <div id="button-div">
               <div className="sort-group" ref={(sortGroup) => {this.sortGroup = sortGroup;}}>
-                <button className="sort-button" onClick={() => this.handleSortClick(0)} ref={(sortBestMatch) => {this.sortBestMatch = sortBestMatch;}}>Best Match</button>
+                <button className="sort-button sort-button-clicked" onClick={() => this.handleSortClick(0)} ref={(sortBestMatch) => {this.sortBestMatch = sortBestMatch;}}>Best Match</button>
                 <button className="sort-button" onClick={() => this.handleSortClick(1)} ref={(sortReview) => {this.sortReview = sortReview;}}>Review Count</button>
                 <button className="sort-button" onClick={() => this.handleSortClick(2)} ref={(sortRating) => {this.sortRating = sortRating;}}>Rating</button>
                 <button className="sort-button" onClick={() => this.handleSortClick(3)} ref={(sortDistance) => {this.sortDistance = sortDistance;}}>Distance</button>
               </div>
               <div className="filter-group" ref={(filterGroup) => {this.filterGroup = filterGroup;}}>
                 <button className="filter-button" onClick={() => this.handleFilterClick(0)} ref={(filterYeggle) => {this.filterYeggle = filterYeggle;}}>Yeggle</button>
-                <button className="filter-button" onClick={() => this.handleFilterClick(1)} ref={(filterPrice1) => {this.filterPrice1 = filterPrice1;}}>$</button>
-                <button className="filter-button" onClick={() => this.handleFilterClick(2)} ref={(filterPrice2) => {this.filterPrice2 = filterPrice2;}}>$$</button>
-                <button className="filter-button" onClick={() => this.handleFilterClick(3)} ref={(filterPrice3) => {this.filterPrice3 = filterPrice3;}}>$$$</button>
+                <button className="filter-button filter-button-clicked" onClick={() => this.handleFilterClick(1)} ref={(filterPrice1) => {this.filterPrice1 = filterPrice1;}}>$</button>
+                <button className="filter-button filter-button-clicked" onClick={() => this.handleFilterClick(2)} ref={(filterPrice2) => {this.filterPrice2 = filterPrice2;}}>$$</button>
+                <button className="filter-button filter-button-clicked" onClick={() => this.handleFilterClick(3)} ref={(filterPrice3) => {this.filterPrice3 = filterPrice3;}}>$$$</button>
               </div>
             </div>
             <div className="grid1">
