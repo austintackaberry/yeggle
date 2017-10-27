@@ -755,7 +755,6 @@ class App extends Component {
             infoWindow.open(map, bothPlaceMarker);
           });
           this.markers.push(bothPlaceMarker);
-          console.log("hey");
         }
       }
       else {
