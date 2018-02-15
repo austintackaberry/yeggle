@@ -7,6 +7,10 @@ Calls Yelp and Google APIs to get search result data that can be filtered/sorted
 In order to run a dev server on your local host, you will need to first install all the required npm packages.
 
 `npm install`
+
+`cd react-backend && npm install`
+
+`cd client && npm install`
   
 Next you will need to navigate to the client folder...
 
