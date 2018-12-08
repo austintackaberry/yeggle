@@ -1,123 +1,11 @@
 import React, { Component } from "react";
+import {
+  getDistanceFromLatLonInM,
+  placeMatch,
+  formatGoogleResults
+} from "./helpers/helpers";
 import "./App.css";
 var loadjs = require("loadjs");
-var async = require("async");
-
-function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
-  var R = 6371; // Radius of the earth in km
-  var dLat = deg2rad(lat2 - lat1); // deg2rad below
-  var dLon = deg2rad(lon2 - lon1);
-  var a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) *
-      Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  var d = R * c; // Distance in km
-  return d * 1000;
-}
-
-function deg2rad(deg) {
-  return deg * (Math.PI / 180);
-}
-
-function placeMatch(googlePlace, yelpPlace) {
-  var gyDist = getDistanceFromLatLonInM(
-    googlePlace.location.lat,
-    googlePlace.location.lng,
-    yelpPlace.location.lat,
-    yelpPlace.location.lng
-  );
-  if (gyDist > 100) {
-    return false;
-  }
-  if (gyDist < 10) {
-    return true;
-  }
-  var googleNameArr = googlePlace.name.split(" ");
-  var yelpNameArr = yelpPlace.name.split(" ");
-  var i = 0;
-  var nameMatch = 0;
-  while (i < Math.min(googleNameArr.length, yelpNameArr.length)) {
-    if (googleNameArr[i] == yelpNameArr[i]) {
-      nameMatch++;
-    }
-    i++;
-  }
-  if (nameMatch === i) {
-    return true;
-  }
-  var googleAddressArr = googlePlace.address.split(" ");
-  var yelpAddressArr = yelpPlace.address.split(" ");
-  if (googleAddressArr[1] !== yelpAddressArr[1]) {
-    return false;
-  }
-  var j = 0;
-  var addressMatch = 0;
-  while (j < 2) {
-    if (googleAddressArr[j] == yelpAddressArr[j]) {
-      addressMatch++;
-    }
-    j++;
-  }
-
-  if (addressMatch === 2) {
-    return true;
-  }
-
-  if ((nameMatch / i) * 1.0 <= 0.5) {
-    return false;
-  }
-  return true;
-}
-
-function formatGoogleResults(googlePlacesResults, bounds, googlePlaces) {
-  for (var i = 0; i < googlePlaces.length; i++) {
-    if (
-      googlePlaces[i].geometry.location.lat > bounds.lat.min &&
-      googlePlaces[i].geometry.location.lat < bounds.lat.max &&
-      googlePlaces[i].geometry.location.lng > bounds.lon.min &&
-      googlePlaces[i].geometry.location.lng < bounds.lon.max
-    ) {
-      var priceLevel = "$".repeat(googlePlaces[i].price_level);
-      if (googlePlaces[i].price_level == 0) {
-        priceLevel = "$";
-      }
-      var currStatus;
-      if (googlePlaces[i].opening_hours !== undefined) {
-        if (googlePlaces[i].opening_hours.open_now) {
-          currStatus = "Open now";
-        } else {
-          currStatus = "Closed now";
-        }
-      }
-      var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
-      var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
-      var distance = getDistanceFromLatLonInM(
-        latitude,
-        longitude,
-        googlePlaces[i].geometry.location.lat,
-        googlePlaces[i].geometry.location.lng
-      );
-      var address = googlePlaces[i].vicinity;
-      var place = {
-        name: googlePlaces[i].name,
-        location: googlePlaces[i].geometry.location,
-        address: address,
-        rating: googlePlaces[i].rating,
-        priceLevel: priceLevel,
-        currStatus: currStatus,
-        distance: distance,
-        url: `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${
-          googlePlaces[i].place_id
-        }`
-      };
-      googlePlacesResults.push(place);
-    }
-  }
-  return googlePlacesResults;
-}
 
 class App extends Component {
   constructor() {
@@ -144,6 +32,8 @@ class App extends Component {
     this.sortResults = this.sortResults.bind(this);
     this.makeMarkers = this.makeMarkers.bind(this);
     this.addMarkerListener = this.addMarkerListener.bind(this);
+    this.locationBoxEl = React.createRef();
+    this.searchBoxEl = React.createRef();
   }
 
   componentDidMount() {
@@ -195,8 +85,10 @@ class App extends Component {
       map.setCenter({ lat: 37.8667517, lng: -122.259986 });
     }
     this.setState({ map: map });
-    this.locationBox = new google.maps.places.SearchBox(this.locationBoxEl);
-    this.searchBox = new google.maps.places.SearchBox(this.searchBoxEl);
+    this.locationBox = new google.maps.places.SearchBox(
+      this.locationBoxEl.current
+    );
+    this.searchBox = new google.maps.places.SearchBox(this.searchBoxEl.current);
     this.icons = {
       google: {
         icon: {
@@ -529,7 +421,7 @@ class App extends Component {
     this.places = this.searchBox.getPlaces();
   }
 
-  handleSubmit(event) {
+  async handleSubmit(event) {
     event.preventDefault();
 
     document.activeElement.blur();
@@ -543,8 +435,9 @@ class App extends Component {
     var diagMeters;
     var bounds;
     var mapBounds;
-    if (this.locationBoxEl !== "") {
+    if (this.locationBoxEl.current.value !== "") {
       var places = this.locationBox.getPlaces();
+      console.log({ places });
       if (places !== undefined) {
         map.setCenter(places[0].geometry.location);
         mapBounds = map.getBounds();
@@ -559,6 +452,7 @@ class App extends Component {
             max: mapBounds.getNorthEast().lng()
           }
         };
+        console.log({ bounds });
         diagMeters = getDistanceFromLatLonInM(
           bounds.lat.min,
           bounds.lon.min,
@@ -582,6 +476,7 @@ class App extends Component {
           max: mapBounds.getNorthEast().lng()
         }
       };
+      console.log({ bounds });
       diagMeters = getDistanceFromLatLonInM(
         bounds.lat.min,
         bounds.lon.min,
@@ -596,204 +491,179 @@ class App extends Component {
     var googlePlaces = [];
     var googlePlacesResults = [];
     var diagMeters;
-    async.series([
-      callback => {
-        if (this.locationBoxEl !== "" && places === undefined) {
-          var paramGoogleJSON = {
-            query: this.locationBoxEl.value
-          };
-          fetch("/googlelocationsearch", {
-            method: "POST",
-            body: JSON.stringify(paramGoogleJSON)
-          })
-            .then(res => res.json())
-            .then(data => {
-              if (data.results[0] !== undefined) {
-                map.setCenter(data.results[0].geometry.location);
-              }
-              mapBounds = map.getBounds();
-              this.searchBox.setBounds(mapBounds);
-              bounds = {
-                lat: {
-                  min: mapBounds.getSouthWest().lat(),
-                  max: mapBounds.getNorthEast().lat()
-                },
-                lon: {
-                  min: mapBounds.getSouthWest().lng(),
-                  max: mapBounds.getNorthEast().lng()
-                }
-              };
-              diagMeters = getDistanceFromLatLonInM(
-                bounds.lat.min,
-                bounds.lon.min,
-                bounds.lat.max,
-                bounds.lon.max
-              );
-              if (diagMeters > 40000 * 2) {
-                diagMeters = 40000 * 2;
-              }
-              callback();
-            });
-        } else {
-          callback();
+    if (this.locationBoxEl.current.value !== "" && places === undefined) {
+      var paramGoogleJSON = {
+        query: this.locationBoxEl.current.value
+      };
+      console.log({ paramGoogleJSON });
+      const fetchRes = await fetch("/googlelocationsearch", {
+        method: "POST",
+        body: JSON.stringify(paramGoogleJSON)
+      });
+      const data = await fetchRes.json();
+      console.log({ data });
+      if (data.results[0] !== undefined) {
+        map.setCenter(data.results[0].geometry.location);
+      }
+      mapBounds = map.getBounds();
+      this.searchBox.setBounds(mapBounds);
+      bounds = {
+        lat: {
+          min: mapBounds.getSouthWest().lat(),
+          max: mapBounds.getNorthEast().lat()
+        },
+        lon: {
+          min: mapBounds.getSouthWest().lng(),
+          max: mapBounds.getNorthEast().lng()
         }
-      },
-      callback => {
-        var paramYelpJSON = {
-          term: this.searchBoxEl.value,
-          latitude: (bounds.lat.min + bounds.lat.max) / 2.0,
-          longitude: (bounds.lon.min + bounds.lon.max) / 2.0,
-          radius: Math.floor(diagMeters / 2.0),
-          limit: 50
+      };
+      diagMeters = getDistanceFromLatLonInM(
+        bounds.lat.min,
+        bounds.lon.min,
+        bounds.lat.max,
+        bounds.lon.max
+      );
+      if (diagMeters > 40000 * 2) {
+        diagMeters = 40000 * 2;
+      }
+    }
+    console.log({ bounds });
+    //Get yelp data
+    var paramYelpJSON = {
+      term: this.searchBoxEl.current.value,
+      latitude: (bounds.lat.min + bounds.lat.max) / 2.0,
+      longitude: (bounds.lon.min + bounds.lon.max) / 2.0,
+      radius: Math.floor(diagMeters / 2.0),
+      limit: 50
+    };
+    const yelpFetchRes = await fetch("/yelpsearch", {
+      method: "POST",
+      body: JSON.stringify(paramYelpJSON)
+    });
+    const yelpdata = await yelpFetchRes.json();
+    var yelpPlaces = yelpdata.businesses;
+    for (var i = 0; i < yelpPlaces.length; i++) {
+      if (
+        yelpPlaces[i].coordinates.latitude > bounds.lat.min &&
+        yelpPlaces[i].coordinates.latitude < bounds.lat.max &&
+        yelpPlaces[i].coordinates.longitude > bounds.lon.min &&
+        yelpPlaces[i].coordinates.longitude < bounds.lon.max
+      ) {
+        var business = {
+          name: yelpPlaces[i].name,
+          reviewCount: yelpPlaces[i].review_count,
+          rating: yelpPlaces[i].rating,
+          priceLevel: yelpPlaces[i].price,
+          location: {
+            lat: yelpPlaces[i].coordinates.latitude,
+            lng: yelpPlaces[i].coordinates.longitude
+          },
+          distance: yelpPlaces[i].distance,
+          address: `${yelpPlaces[i].location.display_address[0]}, ${
+            yelpPlaces[i].location.display_address[1]
+          }`,
+          url: `https://www.yelp.com/biz/${yelpPlaces[i].id}`
         };
-        fetch("/yelpsearch", {
-          method: "POST",
-          body: JSON.stringify(paramYelpJSON)
-        })
-          .then(res => res.json())
-          .then(data => {
-            var yelpPlaces = data.businesses;
-            for (var i = 0; i < yelpPlaces.length; i++) {
-              if (
-                yelpPlaces[i].coordinates.latitude > bounds.lat.min &&
-                yelpPlaces[i].coordinates.latitude < bounds.lat.max &&
-                yelpPlaces[i].coordinates.longitude > bounds.lon.min &&
-                yelpPlaces[i].coordinates.longitude < bounds.lon.max
-              ) {
-                var business = {
-                  name: yelpPlaces[i].name,
-                  reviewCount: yelpPlaces[i].review_count,
-                  rating: yelpPlaces[i].rating,
-                  priceLevel: yelpPlaces[i].price,
-                  location: {
-                    lat: yelpPlaces[i].coordinates.latitude,
-                    lng: yelpPlaces[i].coordinates.longitude
-                  },
-                  distance: yelpPlaces[i].distance,
-                  address: `${yelpPlaces[i].location.display_address[0]}, ${
-                    yelpPlaces[i].location.display_address[1]
-                  }`,
-                  url: `https://www.yelp.com/biz/${yelpPlaces[i].id}`
-                };
-                yelpPlacesResults.push(business);
-              }
-            }
-            callback();
-          })
-          .catch(e => {
-            console.log(e);
-          });
-      },
-      callback => {
-        var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
-        var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
-        if (diagMeters > 50000 * 2) {
-          diagMeters = 50000 * 2;
-        }
-        var paramGoogleJSON = {
-          keyword: this.searchBoxEl.value,
-          location: `${latitude.toString()},${longitude.toString()}`,
-          radius: Math.floor(diagMeters / 2.0)
-        };
-        fetch("/googlesearch", {
+        yelpPlacesResults.push(business);
+      }
+    }
+    var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
+    var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
+    if (diagMeters > 50000 * 2) {
+      diagMeters = 50000 * 2;
+    }
+    var paramGoogleJSON = {
+      keyword: this.searchBoxEl.current.value,
+      location: `${latitude.toString()},${longitude.toString()}`,
+      radius: Math.floor(diagMeters / 2.0)
+    };
+    const googFetchRes = await fetch("/googlesearch", {
+      method: "POST",
+      body: JSON.stringify(paramGoogleJSON)
+    });
+    const googData = await googFetchRes.json();
+    var googlePlaces = googData.results;
+    var googlePlacesLength = googlePlaces.length;
+    googlePlacesResults = formatGoogleResults(
+      googlePlacesResults,
+      bounds,
+      googlePlaces
+    );
+    paramGoogleJSON.pagetoken = googData.next_page_token;
+    if (googlePlacesLength === 20) {
+      setTimeout(async function() {
+        const googSearchFetch = await fetch("/googlesearch", {
           method: "POST",
           body: JSON.stringify(paramGoogleJSON)
-        })
-          .then(res => res.json())
-          .then(data => {
-            var googlePlaces = data.results;
-            var googlePlacesLength = googlePlaces.length;
-            googlePlacesResults = formatGoogleResults(
-              googlePlacesResults,
-              bounds,
-              googlePlaces
-            );
-            paramGoogleJSON.pagetoken = data.next_page_token;
-            if (googlePlacesLength === 20) {
-              setTimeout(function() {
-                fetch("/googlesearch", {
-                  method: "POST",
-                  body: JSON.stringify(paramGoogleJSON)
-                })
-                  .then(res1 => res1.json())
-                  .then(data1 => {
-                    googlePlaces = data1.results;
-                    googlePlacesResults = formatGoogleResults(
-                      googlePlacesResults,
-                      bounds,
-                      googlePlaces
-                    );
-                    paramGoogleJSON.pagetoken = data1.next_page_token;
-                    callback();
-                  });
-              }, 1600);
-            } else {
-              callback();
-            }
-          });
-      },
-      callback => {
-        var foundMatch;
-        var bothPlacesResults = [];
-        yelpPlacesResults.forEach((yelpPlace, yindex, yarray) => {
-          foundMatch = false;
-          googlePlacesResults.forEach((googlePlace, gindex, garray) => {
-            if (!foundMatch) {
-              if (placeMatch(googlePlace, yelpPlace)) {
-                bothPlacesResults.push({
-                  yelp: yelpPlace,
-                  google: googlePlace
-                });
-                foundMatch = true;
-              }
-            }
-          });
         });
-        var filterState = this.state.filterStatus;
-        var tempPlaceArray = this.filterResults(
-          yelpPlacesResults,
+        const googSearchFetchData = await googSearchFetch.json();
+        googlePlaces = googSearchFetchData.results;
+        googlePlacesResults = formatGoogleResults(
           googlePlacesResults,
-          bothPlacesResults,
-          filterState
+          bounds,
+          googlePlaces
         );
-        var currentYelpPlaces = tempPlaceArray[0];
-        var currentGooglePlaces = tempPlaceArray[1];
-        tempPlaceArray = this.sortResults(
-          currentYelpPlaces,
-          currentGooglePlaces,
-          this.state.sortStatus
-        );
-        var currentYelpPlaces = tempPlaceArray[0];
-        var currentGooglePlaces = tempPlaceArray[1];
-        this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
-
-        this.locationBoxEl.value = "";
-        this.loader.classList.remove("loader-activated");
-        this.nonloaderEl.style.opacity = "1";
-        this.loader.style.display = "none";
-        document.getElementById("disablingDiv").style.display = "none";
-        if (
-          this.state.sortStatus === 0 &&
-          this.state.filterStatus[0] === false &&
-          this.state.filterStatus[1] === true &&
-          this.state.filterStatus[2] === true &&
-          this.state.filterStatus[3] === true
-        ) {
-          this.sortBestMatch.classList.add("sort-button-clicked");
-          this.filterPrice1.classList.add("filter-button-clicked");
-          this.filterPrice2.classList.add("filter-button-clicked");
-          this.filterPrice3.classList.add("filter-button-clicked");
+        paramGoogleJSON.pagetoken = googSearchFetchData.next_page_token;
+      }, 1600);
+    }
+    var foundMatch;
+    var bothPlacesResults = [];
+    yelpPlacesResults.forEach((yelpPlace, yindex, yarray) => {
+      foundMatch = false;
+      googlePlacesResults.forEach((googlePlace, gindex, garray) => {
+        if (!foundMatch) {
+          if (placeMatch(googlePlace, yelpPlace)) {
+            bothPlacesResults.push({
+              yelp: yelpPlace,
+              google: googlePlace
+            });
+            foundMatch = true;
+          }
         }
-        this.setState({
-          googlePlacesResults: googlePlacesResults,
-          yelpPlacesResults: yelpPlacesResults,
-          bothPlacesResults: bothPlacesResults,
-          currentYelpPlaces: currentYelpPlaces,
-          currentGooglePlaces: currentGooglePlaces
-        });
-        callback();
-      }
-    ]);
+      });
+    });
+    var filterState = this.state.filterStatus;
+    var tempPlaceArray = this.filterResults(
+      yelpPlacesResults,
+      googlePlacesResults,
+      bothPlacesResults,
+      filterState
+    );
+    var currentYelpPlaces = tempPlaceArray[0];
+    var currentGooglePlaces = tempPlaceArray[1];
+    tempPlaceArray = this.sortResults(
+      currentYelpPlaces,
+      currentGooglePlaces,
+      this.state.sortStatus
+    );
+    var currentYelpPlaces = tempPlaceArray[0];
+    var currentGooglePlaces = tempPlaceArray[1];
+    this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
+
+    this.locationBoxEl.current.value = "";
+    this.loader.classList.remove("loader-activated");
+    this.nonloaderEl.style.opacity = "1";
+    this.loader.style.display = "none";
+    document.getElementById("disablingDiv").style.display = "none";
+    if (
+      this.state.sortStatus === 0 &&
+      this.state.filterStatus[0] === false &&
+      this.state.filterStatus[1] === true &&
+      this.state.filterStatus[2] === true &&
+      this.state.filterStatus[3] === true
+    ) {
+      this.sortBestMatch.classList.add("sort-button-clicked");
+      this.filterPrice1.classList.add("filter-button-clicked");
+      this.filterPrice2.classList.add("filter-button-clicked");
+      this.filterPrice3.classList.add("filter-button-clicked");
+    }
+    this.setState({
+      googlePlacesResults: googlePlacesResults,
+      yelpPlacesResults: yelpPlacesResults,
+      bothPlacesResults: bothPlacesResults,
+      currentYelpPlaces: currentYelpPlaces,
+      currentGooglePlaces: currentGooglePlaces
+    });
   }
 
   addMarkerListener(newMarker) {
@@ -990,17 +860,10 @@ class App extends Component {
                 onChange={this.handleChange}
                 onKeyPress={this.handleChange}
                 id="search-box"
-                ref={searchBoxEl => {
-                  this.searchBoxEl = searchBoxEl;
-                }}
+                ref={this.searchBoxEl}
                 placeholder="Search for"
               />
-              <input
-                placeholder="Near"
-                ref={locationBoxEl => {
-                  this.locationBoxEl = locationBoxEl;
-                }}
-              />
+              <input placeholder="Near" ref={this.locationBoxEl} />
               <input id="submit-button" type="submit" />
             </form>
           </header>

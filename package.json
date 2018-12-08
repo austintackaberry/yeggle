@@ -20,6 +20,6 @@
     "nodemon": "^1.18.7",
     "serve-favicon": "~2.4.5",
     "yelp": "^1.0.2",
-    "yelp-fusion": "^1.0.3"
+    "yelp-fusion": "^2.2.1"
   }
 }
