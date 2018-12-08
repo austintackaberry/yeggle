@@ -18,7 +18,7 @@ app.set("view engine", "jade");
 app.use(logger("dev"));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.text());
-
+app.use(favicon(path.join(__dirname, "build", "favicon.ico")));
 if (process.env.NODE_ENV === "production") {
   app.use(express.static("client/build"));
 }
