@@ -1,8 +1,21 @@
 {
+  "name": "react-backend",
+  "version": "0.0.0",
+  "private": true,
   "scripts": {
-    "start": "cd react-backend && npm install && npm start"
+    "start": "node app.js",
+    "dev": "concurrently \"npm run server\" \"npm run client\""
   },
   "dependencies": {
-    "node-fetch": "^1.7.3"
+    "body-parser": "~1.18.2",
+    "concurrently": "^4.1.0",
+    "cookie-parser": "~1.4.3",
+    "debug": "~2.6.9",
+    "express": "~4.15.5",
+    "jade": "~1.11.0",
+    "morgan": "~1.9.0",
+    "serve-favicon": "~2.4.5",
+    "yelp": "^1.0.2",
+    "yelp-fusion": "^1.0.3"
   }
 }
