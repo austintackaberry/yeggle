@@ -1,39 +1,45 @@
-import React, { Component } from 'react';
-import './App.css';
-var loadjs = require('loadjs');
-var async = require('async');
+import React, { Component } from "react";
+import "./App.css";
+var loadjs = require("loadjs");
+var async = require("async");
 
-function getDistanceFromLatLonInM(lat1,lon1,lat2,lon2) {
+function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
   var R = 6371; // Radius of the earth in km
-  var dLat = deg2rad(lat2-lat1);  // deg2rad below
-  var dLon = deg2rad(lon2-lon1);
+  var dLat = deg2rad(lat2 - lat1); // deg2rad below
+  var dLon = deg2rad(lon2 - lon1);
   var a =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon/2) * Math.sin(dLon/2)
-    ;
-  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   var d = R * c; // Distance in km
-  return d*1000;
+  return d * 1000;
 }
 
 function deg2rad(deg) {
-  return deg * (Math.PI/180)
+  return deg * (Math.PI / 180);
 }
 
 function placeMatch(googlePlace, yelpPlace) {
-  var gyDist = getDistanceFromLatLonInM(googlePlace.location.lat,googlePlace.location.lng,yelpPlace.location.lat,yelpPlace.location.lng);
+  var gyDist = getDistanceFromLatLonInM(
+    googlePlace.location.lat,
+    googlePlace.location.lng,
+    yelpPlace.location.lat,
+    yelpPlace.location.lng
+  );
   if (gyDist > 100) {
     return false;
   }
   if (gyDist < 10) {
     return true;
   }
-  var googleNameArr = googlePlace.name.split(' ');
-  var yelpNameArr = yelpPlace.name.split(' ');
+  var googleNameArr = googlePlace.name.split(" ");
+  var yelpNameArr = yelpPlace.name.split(" ");
   var i = 0;
   var nameMatch = 0;
-  while (i < Math.min(googleNameArr.length, yelpNameArr.length)){
+  while (i < Math.min(googleNameArr.length, yelpNameArr.length)) {
     if (googleNameArr[i] == yelpNameArr[i]) {
       nameMatch++;
     }
@@ -42,14 +48,14 @@ function placeMatch(googlePlace, yelpPlace) {
   if (nameMatch === i) {
     return true;
   }
-  var googleAddressArr = googlePlace.address.split(' ');
-  var yelpAddressArr = yelpPlace.address.split(' ');
+  var googleAddressArr = googlePlace.address.split(" ");
+  var yelpAddressArr = yelpPlace.address.split(" ");
   if (googleAddressArr[1] !== yelpAddressArr[1]) {
     return false;
   }
   var j = 0;
   var addressMatch = 0;
-  while (j < 2){
+  while (j < 2) {
     if (googleAddressArr[j] == yelpAddressArr[j]) {
       addressMatch++;
     }
@@ -60,7 +66,7 @@ function placeMatch(googlePlace, yelpPlace) {
     return true;
   }
 
-  if (nameMatch/i*1.0 <= 0.5) {
+  if ((nameMatch / i) * 1.0 <= 0.5) {
     return false;
   }
   return true;
@@ -68,23 +74,32 @@ function placeMatch(googlePlace, yelpPlace) {
 
 function formatGoogleResults(googlePlacesResults, bounds, googlePlaces) {
   for (var i = 0; i < googlePlaces.length; i++) {
-    if (googlePlaces[i].geometry.location.lat > bounds.lat.min && googlePlaces[i].geometry.location.lat < bounds.lat.max && googlePlaces[i].geometry.location.lng > bounds.lon.min && googlePlaces[i].geometry.location.lng < bounds.lon.max) {
-      var priceLevel = '$'.repeat(googlePlaces[i].price_level);
+    if (
+      googlePlaces[i].geometry.location.lat > bounds.lat.min &&
+      googlePlaces[i].geometry.location.lat < bounds.lat.max &&
+      googlePlaces[i].geometry.location.lng > bounds.lon.min &&
+      googlePlaces[i].geometry.location.lng < bounds.lon.max
+    ) {
+      var priceLevel = "$".repeat(googlePlaces[i].price_level);
       if (googlePlaces[i].price_level == 0) {
-        priceLevel = '$';
+        priceLevel = "$";
       }
       var currStatus;
       if (googlePlaces[i].opening_hours !== undefined) {
         if (googlePlaces[i].opening_hours.open_now) {
-          currStatus = 'Open now'
-        }
-        else {
-          currStatus = 'Closed now'
+          currStatus = "Open now";
+        } else {
+          currStatus = "Closed now";
         }
       }
       var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
       var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
-      var distance = getDistanceFromLatLonInM(latitude, longitude, googlePlaces[i].geometry.location.lat, googlePlaces[i].geometry.location.lng);
+      var distance = getDistanceFromLatLonInM(
+        latitude,
+        longitude,
+        googlePlaces[i].geometry.location.lat,
+        googlePlaces[i].geometry.location.lng
+      );
       var address = googlePlaces[i].vicinity;
       var place = {
         name: googlePlaces[i].name,
@@ -94,7 +109,9 @@ function formatGoogleResults(googlePlacesResults, bounds, googlePlaces) {
         priceLevel: priceLevel,
         currStatus: currStatus,
         distance: distance,
-        url: 'https://www.google.com/maps/search/?api=1&query=Google&query_place_id=' + googlePlaces[i].place_id
+        url: `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${
+          googlePlaces[i].place_id
+        }`
       };
       googlePlacesResults.push(place);
     }
@@ -112,8 +129,8 @@ class App extends Component {
       currentGooglePlaces: [],
       currentYelpPlaces: [],
       sortStatus: 0,
-      filterStatus: [false,true,true,true]
-    }
+      filterStatus: [false, true, true, true]
+    };
     this.markers = [];
     this.maxLength = 15;
     this.initMap = this.initMap.bind(this);
@@ -131,18 +148,23 @@ class App extends Component {
 
   componentDidMount() {
     window.initMap = this.initMap;
-    loadjs('https://maps.googleapis.com/maps/api/js?key=AIzaSyCkzLkLAJ_ZRGvaAg2c9R2sC_n-OHLq-x8&libraries=places&callback=initMap');
-    window.addEventListener('scroll', this.handleScroll);
+    loadjs(
+      "https://maps.googleapis.com/maps/api/js?key=AIzaSyCkzLkLAJ_ZRGvaAg2c9R2sC_n-OHLq-x8&libraries=places&callback=initMap"
+    );
+    window.addEventListener("scroll", this.handleScroll);
   }
 
   handleScroll() {
     var rect = this.stickyWrapper.getBoundingClientRect();
     if (rect.top <= 0) {
-      this.placeHolder.style.height = this.stickyWrapper.clientHeight+"px";
+      this.placeHolder.style.height = `${this.stickyWrapper.clientHeight}px`;
       this.placeHolder.style.width = "100%";
       this.stickyWrapper.classList.add("sticky");
     }
-    if (window.scrollY <= 150 && this.stickyWrapper.classList.contains("sticky")){
+    if (
+      window.scrollY <= 150 &&
+      this.stickyWrapper.classList.contains("sticky")
+    ) {
       this.stickyWrapper.classList.toggle("sticky");
       this.placeHolder.style.height = "0";
       this.placeHolder.style.width = "0";
@@ -153,27 +175,32 @@ class App extends Component {
     const google = window.google;
     var map = new google.maps.Map(this.map, {
       zoom: 11,
-      mapTypeId: 'roadmap',
-      gestureHandling: 'greedy'
+      mapTypeId: "roadmap",
+      gestureHandling: "greedy"
     });
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(function (position) {
-        var initialLocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
-        map.setCenter(initialLocation);
-      }, function() {
-        map.setCenter({lat: 37.8667517, lng: -122.259986});
-      });
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          var initialLocation = new google.maps.LatLng(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+          map.setCenter(initialLocation);
+        },
+        function() {
+          map.setCenter({ lat: 37.8667517, lng: -122.259986 });
+        }
+      );
+    } else {
+      map.setCenter({ lat: 37.8667517, lng: -122.259986 });
     }
-    else {
-      map.setCenter({lat: 37.8667517, lng: -122.259986});
-    }
-    this.setState({map:map});
+    this.setState({ map: map });
     this.locationBox = new google.maps.places.SearchBox(this.locationBoxEl);
     this.searchBox = new google.maps.places.SearchBox(this.searchBoxEl);
     this.icons = {
       google: {
         icon: {
-          url: '/google_logo.png',
+          url: "/google_logo.png",
           scaledSize: new google.maps.Size(25, 25),
           origin: new google.maps.Point(0, 0),
           anchor: new google.maps.Point(0, 0)
@@ -181,7 +208,7 @@ class App extends Component {
       },
       yelp: {
         icon: {
-          url: '/yelp_logo.png',
+          url: "/yelp_logo.png",
           scaledSize: new google.maps.Size(25, 25),
           origin: new google.maps.Point(0, 0),
           anchor: new google.maps.Point(0, 0)
@@ -189,14 +216,14 @@ class App extends Component {
       },
       yeggle: {
         icon: {
-          url: '/yeggle.png',
+          url: "/yeggle.png",
           scaledSize: new google.maps.Size(30, 30),
           origin: new google.maps.Point(0, 0),
           anchor: new google.maps.Point(0, 0)
         }
       }
     };
-    this.infoWindow = new google.maps.InfoWindow;
+    this.infoWindow = new google.maps.InfoWindow();
   }
 
   handleSearchClick() {
@@ -204,7 +231,7 @@ class App extends Component {
       this.searchBox.setBounds(this.state.map.getBounds());
       this.places = this.searchBox.getPlaces();
       this.setState({
-        searchBounds:this.state.map.getBounds()
+        searchBounds: this.state.map.getBounds()
       });
     }
   }
@@ -231,8 +258,7 @@ class App extends Component {
           }
           return b.yelp.reviewCount - a.yelp.reviewCount;
         });
-      }
-      else {
+      } else {
         currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
           if (a.reviewCount === b.reviewCount) {
             return b.rating - a.rating;
@@ -240,8 +266,7 @@ class App extends Component {
           return b.reviewCount - a.reviewCount;
         });
       }
-    }
-    else if (sortState === 2) {
+    } else if (sortState === 2) {
       if (yeggle) {
         yeggleArr = yeggleArr.sort(function(a, b) {
           if (a.yelp.rating === b.yelp.rating) {
@@ -249,8 +274,7 @@ class App extends Component {
           }
           return b.yelp.rating - a.yelp.rating;
         });
-      }
-      else {
+      } else {
         currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
           if (a.rating === b.rating) {
             return b.reviewCount - a.reviewCount;
@@ -261,14 +285,12 @@ class App extends Component {
           return b.rating - a.rating;
         });
       }
-    }
-    else if (sortState === 3) {
+    } else if (sortState === 3) {
       if (yeggle) {
         yeggleArr = yeggleArr.sort(function(a, b) {
           return a.yelp.distance - b.yelp.distance;
         });
-      }
-      else {
+      } else {
         currentYelpPlaces = currentYelpPlaces.sort(function(a, b) {
           return a.distance - b.distance;
         });
@@ -281,15 +303,14 @@ class App extends Component {
       currentGooglePlaces = [];
       currentYelpPlaces = [];
       for (var i = 0; i < yeggleArr.length; i++) {
-        currentYelpPlaces.push(yeggleArr[i].yelp)
-        currentGooglePlaces.push(yeggleArr[i].google)
+        currentYelpPlaces.push(yeggleArr[i].yelp);
+        currentGooglePlaces.push(yeggleArr[i].google);
       }
     }
     return [currentYelpPlaces, currentGooglePlaces];
   }
 
   handleSortClick(buttonNum) {
-
     var children = this.sortGroup.children;
     for (var i = 0; i < children.length; i++) {
       children[i].classList.remove("sort-button-clicked");
@@ -303,28 +324,42 @@ class App extends Component {
     if (buttonNum === 0) {
       this.sortBestMatch.classList.add("sort-button-clicked");
       var filterState = this.state.filterStatus;
-      tempPlaceArray = this.filterResults(yelpPlacesResults, googlePlacesResults, bothPlacesResults, filterState);
+      tempPlaceArray = this.filterResults(
+        yelpPlacesResults,
+        googlePlacesResults,
+        bothPlacesResults,
+        filterState
+      );
       currentYelpPlaces = tempPlaceArray[0].slice();
       currentGooglePlaces = tempPlaceArray[1];
-    }
-    else if (buttonNum === 1) {
+    } else if (buttonNum === 1) {
       this.sortReview.classList.add("sort-button-clicked");
-    }
-    else if (buttonNum === 2) {
+    } else if (buttonNum === 2) {
       this.sortRating.classList.add("sort-button-clicked");
-    }
-    else if (buttonNum === 3) {
+    } else if (buttonNum === 3) {
       this.sortDistance.classList.add("sort-button-clicked");
     }
-    this.setState({sortStatus:buttonNum});
-    var temp1PlaceArray = this.sortResults(currentYelpPlaces, currentGooglePlaces, buttonNum);
+    this.setState({ sortStatus: buttonNum });
+    var temp1PlaceArray = this.sortResults(
+      currentYelpPlaces,
+      currentGooglePlaces,
+      buttonNum
+    );
     currentYelpPlaces = temp1PlaceArray[0].slice();
     currentGooglePlaces = temp1PlaceArray[1].slice();
     this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
-    this.setState({currentYelpPlaces:currentYelpPlaces, currentGooglePlaces:currentGooglePlaces});
+    this.setState({
+      currentYelpPlaces: currentYelpPlaces,
+      currentGooglePlaces: currentGooglePlaces
+    });
   }
 
-  filterResults(yelpPlacesResults, googlePlacesResults, bothPlacesResults, filterState) {
+  filterResults(
+    yelpPlacesResults,
+    googlePlacesResults,
+    bothPlacesResults,
+    filterState
+  ) {
     var currentYelpPlaces = yelpPlacesResults.slice();
     var currentGooglePlaces = googlePlacesResults.slice();
     var priceLevel;
@@ -344,18 +379,15 @@ class App extends Component {
         if (currentYelpPlaces[i].priceLevel === priceLevel) {
           if (yeggle) {
             if (currentGooglePlaces[i].priceLevel === priceLevel) {
-              currentGooglePlaces.splice(i,1);
-              currentYelpPlaces.splice(i,1);
-            }
-            else {
+              currentGooglePlaces.splice(i, 1);
+              currentYelpPlaces.splice(i, 1);
+            } else {
               i++;
             }
+          } else {
+            currentYelpPlaces.splice(i, 1);
           }
-          else {
-            currentYelpPlaces.splice(i,1);
-          }
-        }
-        else {
+        } else {
           i++;
         }
       }
@@ -363,13 +395,11 @@ class App extends Component {
       while (i < currentGooglePlaces.length) {
         if (currentGooglePlaces[i].priceLevel === priceLevel) {
           if (!yeggle) {
-            currentGooglePlaces.splice(i,1);
-          }
-          else {
+            currentGooglePlaces.splice(i, 1);
+          } else {
             i++;
           }
-        }
-        else {
+        } else {
           i++;
         }
       }
@@ -381,18 +411,15 @@ class App extends Component {
         if (currentYelpPlaces[i].priceLevel === priceLevel) {
           if (yeggle) {
             if (currentGooglePlaces[i].priceLevel === priceLevel) {
-              currentGooglePlaces.splice(i,1);
-              currentYelpPlaces.splice(i,1);
-            }
-            else {
+              currentGooglePlaces.splice(i, 1);
+              currentYelpPlaces.splice(i, 1);
+            } else {
               i++;
             }
+          } else {
+            currentYelpPlaces.splice(i, 1);
           }
-          else {
-            currentYelpPlaces.splice(i,1);
-          }
-        }
-        else {
+        } else {
           i++;
         }
       }
@@ -400,13 +427,11 @@ class App extends Component {
       while (i < currentGooglePlaces.length) {
         if (currentGooglePlaces[i].priceLevel === priceLevel) {
           if (!yeggle) {
-            currentGooglePlaces.splice(i,1);
-          }
-          else {
+            currentGooglePlaces.splice(i, 1);
+          } else {
             i++;
           }
-        }
-        else {
+        } else {
           i++;
         }
       }
@@ -418,18 +443,15 @@ class App extends Component {
         if (currentYelpPlaces[i].priceLevel === priceLevel) {
           if (yeggle) {
             if (currentGooglePlaces[i].priceLevel === priceLevel) {
-              currentGooglePlaces.splice(i,1);
-              currentYelpPlaces.splice(i,1);
-            }
-            else {
+              currentGooglePlaces.splice(i, 1);
+              currentYelpPlaces.splice(i, 1);
+            } else {
               i++;
             }
+          } else {
+            currentYelpPlaces.splice(i, 1);
           }
-          else {
-            currentYelpPlaces.splice(i,1);
-          }
-        }
-        else {
+        } else {
           i++;
         }
       }
@@ -437,13 +459,11 @@ class App extends Component {
       while (i < currentGooglePlaces.length) {
         if (currentGooglePlaces[i].priceLevel === priceLevel) {
           if (!yeggle) {
-            currentGooglePlaces.splice(i,1);
-          }
-          else {
+            currentGooglePlaces.splice(i, 1);
+          } else {
             i++;
           }
-        }
-        else {
+        } else {
           i++;
         }
       }
@@ -455,33 +475,26 @@ class App extends Component {
     var filterState = this.state.filterStatus;
     if (filterState[filterNum]) {
       filterState[filterNum] = false;
-      this.setState({filterStatus:filterState});
+      this.setState({ filterStatus: filterState });
       if (filterNum === 0) {
         this.filterYeggle.classList.remove("filter-button-clicked");
-      }
-      else if (filterNum === 1) {
+      } else if (filterNum === 1) {
         this.filterPrice1.classList.remove("filter-button-clicked");
-      }
-      else if (filterNum === 2) {
+      } else if (filterNum === 2) {
         this.filterPrice2.classList.remove("filter-button-clicked");
-      }
-      else if (filterNum === 3) {
+      } else if (filterNum === 3) {
         this.filterPrice3.classList.remove("filter-button-clicked");
       }
-    }
-    else {
+    } else {
       filterState[filterNum] = true;
-      this.setState({filterStatus:filterState});
+      this.setState({ filterStatus: filterState });
       if (filterNum === 0) {
         this.filterYeggle.classList.add("filter-button-clicked");
-      }
-      else if (filterNum === 1) {
+      } else if (filterNum === 1) {
         this.filterPrice1.classList.add("filter-button-clicked");
-      }
-      else if (filterNum === 2) {
+      } else if (filterNum === 2) {
         this.filterPrice2.classList.add("filter-button-clicked");
-      }
-      else if (filterNum === 3) {
+      } else if (filterNum === 3) {
         this.filterPrice3.classList.add("filter-button-clicked");
       }
     }
@@ -489,15 +502,27 @@ class App extends Component {
     var yelpPlacesResults = this.state.yelpPlacesResults.slice();
     var googlePlacesResults = this.state.googlePlacesResults.slice();
     var bothPlacesResults = this.state.bothPlacesResults.slice();
-    var tempPlaceArray = this.filterResults(yelpPlacesResults,googlePlacesResults,bothPlacesResults, filterState);
+    var tempPlaceArray = this.filterResults(
+      yelpPlacesResults,
+      googlePlacesResults,
+      bothPlacesResults,
+      filterState
+    );
     var currentYelpPlaces = tempPlaceArray[0].slice();
     var currentGooglePlaces = tempPlaceArray[1].slice();
     var sortState = this.state.sortStatus;
-    var temp1PlaceArray = this.sortResults(currentYelpPlaces, currentGooglePlaces, sortState);
+    var temp1PlaceArray = this.sortResults(
+      currentYelpPlaces,
+      currentGooglePlaces,
+      sortState
+    );
     currentYelpPlaces = temp1PlaceArray[0].slice();
     currentGooglePlaces = temp1PlaceArray[1].slice();
     this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
-    this.setState({currentGooglePlaces:currentGooglePlaces, currentYelpPlaces:currentYelpPlaces});
+    this.setState({
+      currentGooglePlaces: currentGooglePlaces,
+      currentYelpPlaces: currentYelpPlaces
+    });
   }
 
   handleChange() {
@@ -511,7 +536,7 @@ class App extends Component {
     this.nonloaderEl.style.opacity = "0.2";
     this.loader.classList.add("loader-activated");
     this.loader.style.display = "block";
-    document.getElementById('disablingDiv').style.display='block';
+    document.getElementById("disablingDiv").style.display = "block";
 
     const google = window.google;
     var map = this.state.map;
@@ -526,34 +551,43 @@ class App extends Component {
         this.searchBox.setBounds(mapBounds);
         bounds = {
           lat: {
-            min: mapBounds.f.b,
-            max: mapBounds.f.f,
+            min: mapBounds.getSouthWest().lat(),
+            max: mapBounds.getNorthEast().lat()
           },
           lon: {
-            min: mapBounds.b.b,
-            max: mapBounds.b.f,
+            min: mapBounds.getSouthWest().lng(),
+            max: mapBounds.getNorthEast().lng()
           }
         };
-        diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
+        diagMeters = getDistanceFromLatLonInM(
+          bounds.lat.min,
+          bounds.lon.min,
+          bounds.lat.max,
+          bounds.lon.max
+        );
         if (diagMeters > 40000 * 2) {
           diagMeters = 40000 * 2;
         }
       }
-    }
-    else {
+    } else {
       mapBounds = map.getBounds();
       this.searchBox.setBounds(mapBounds);
       bounds = {
         lat: {
-          min: mapBounds.f.b,
-          max: mapBounds.f.f,
+          min: mapBounds.getSouthWest().lat(),
+          max: mapBounds.getNorthEast().lat()
         },
         lon: {
-          min: mapBounds.b.b,
-          max: mapBounds.b.f,
+          min: mapBounds.getSouthWest().lng(),
+          max: mapBounds.getNorthEast().lng()
         }
       };
-      diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
+      diagMeters = getDistanceFromLatLonInM(
+        bounds.lat.min,
+        bounds.lon.min,
+        bounds.lat.max,
+        bounds.lon.max
+      );
       if (diagMeters > 40000 * 2) {
         diagMeters = 40000 * 2;
       }
@@ -563,60 +597,69 @@ class App extends Component {
     var googlePlacesResults = [];
     var diagMeters;
     async.series([
-      (callback) => {
+      callback => {
         if (this.locationBoxEl !== "" && places === undefined) {
           var paramGoogleJSON = {
             query: this.locationBoxEl.value
           };
-          fetch('/googlelocationsearch', {
-            method: 'POST',
+          fetch("/googlelocationsearch", {
+            method: "POST",
             body: JSON.stringify(paramGoogleJSON)
           })
-          .then(res => res.json())
-          .then(data => {
-            if (data.results[0] !== undefined) {
-              map.setCenter(data.results[0].geometry.location);
-            }
-            mapBounds = map.getBounds();
-            this.searchBox.setBounds(mapBounds);
-            bounds = {
-              lat: {
-                min: mapBounds.f.b,
-                max: mapBounds.f.f,
-              },
-              lon: {
-                min: mapBounds.b.b,
-                max: mapBounds.b.f,
+            .then(res => res.json())
+            .then(data => {
+              if (data.results[0] !== undefined) {
+                map.setCenter(data.results[0].geometry.location);
               }
-            };
-            diagMeters = getDistanceFromLatLonInM(bounds.lat.min, bounds.lon.min, bounds.lat.max, bounds.lon.max);
-            if (diagMeters > 40000 * 2) {
-              diagMeters = 40000 * 2;
-            }
-            callback();
-          });
-        }
-        else {
+              mapBounds = map.getBounds();
+              this.searchBox.setBounds(mapBounds);
+              bounds = {
+                lat: {
+                  min: mapBounds.getSouthWest().lat(),
+                  max: mapBounds.getNorthEast().lat()
+                },
+                lon: {
+                  min: mapBounds.getSouthWest().lng(),
+                  max: mapBounds.getNorthEast().lng()
+                }
+              };
+              diagMeters = getDistanceFromLatLonInM(
+                bounds.lat.min,
+                bounds.lon.min,
+                bounds.lat.max,
+                bounds.lon.max
+              );
+              if (diagMeters > 40000 * 2) {
+                diagMeters = 40000 * 2;
+              }
+              callback();
+            });
+        } else {
           callback();
         }
       },
-      (callback) => {
-          var paramYelpJSON = {
-            term: this.searchBoxEl.value,
-            latitude: (bounds.lat.min + bounds.lat.max) / 2.0,
-            longitude: (bounds.lon.min + bounds.lon.max) / 2.0,
-            radius: Math.floor(diagMeters / 2.0),
-            limit: 50
-          }
-          fetch('/yelpsearch', {
-            method: 'POST',
-            body: JSON.stringify(paramYelpJSON)
-          })
+      callback => {
+        var paramYelpJSON = {
+          term: this.searchBoxEl.value,
+          latitude: (bounds.lat.min + bounds.lat.max) / 2.0,
+          longitude: (bounds.lon.min + bounds.lon.max) / 2.0,
+          radius: Math.floor(diagMeters / 2.0),
+          limit: 50
+        };
+        fetch("/yelpsearch", {
+          method: "POST",
+          body: JSON.stringify(paramYelpJSON)
+        })
           .then(res => res.json())
           .then(data => {
             var yelpPlaces = data.businesses;
             for (var i = 0; i < yelpPlaces.length; i++) {
-              if (yelpPlaces[i].coordinates.latitude > bounds.lat.min && yelpPlaces[i].coordinates.latitude < bounds.lat.max && yelpPlaces[i].coordinates.longitude > bounds.lon.min && yelpPlaces[i].coordinates.longitude < bounds.lon.max) {
+              if (
+                yelpPlaces[i].coordinates.latitude > bounds.lat.min &&
+                yelpPlaces[i].coordinates.latitude < bounds.lat.max &&
+                yelpPlaces[i].coordinates.longitude > bounds.lon.min &&
+                yelpPlaces[i].coordinates.longitude < bounds.lon.max
+              ) {
                 var business = {
                   name: yelpPlaces[i].name,
                   reviewCount: yelpPlaces[i].review_count,
@@ -627,100 +670,129 @@ class App extends Component {
                     lng: yelpPlaces[i].coordinates.longitude
                   },
                   distance: yelpPlaces[i].distance,
-                  address: yelpPlaces[i].location.display_address[0] + ', ' + yelpPlaces[i].location.display_address[1],
-                  url: 'https://www.yelp.com/biz/' + yelpPlaces[i].id
+                  address: `${yelpPlaces[i].location.display_address[0]}, ${
+                    yelpPlaces[i].location.display_address[1]
+                  }`,
+                  url: `https://www.yelp.com/biz/${yelpPlaces[i].id}`
                 };
                 yelpPlacesResults.push(business);
               }
             }
             callback();
-          }).catch(e => {
+          })
+          .catch(e => {
             console.log(e);
           });
-        },
-        (callback) => {
-          var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
-          var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
-          if (diagMeters > 50000 * 2) {
-            diagMeters = 50000 * 2;
-          }
-          var paramGoogleJSON = {
-            keyword: this.searchBoxEl.value,
-            location: latitude.toString() + "," + longitude.toString(),
-            radius: Math.floor(diagMeters / 2.0),
-          };
-          fetch('/googlesearch', {
-            method: 'POST',
-            body: JSON.stringify(paramGoogleJSON)
-          })
+      },
+      callback => {
+        var latitude = (bounds.lat.min + bounds.lat.max) / 2.0;
+        var longitude = (bounds.lon.min + bounds.lon.max) / 2.0;
+        if (diagMeters > 50000 * 2) {
+          diagMeters = 50000 * 2;
+        }
+        var paramGoogleJSON = {
+          keyword: this.searchBoxEl.value,
+          location: `${latitude.toString()},${longitude.toString()}`,
+          radius: Math.floor(diagMeters / 2.0)
+        };
+        fetch("/googlesearch", {
+          method: "POST",
+          body: JSON.stringify(paramGoogleJSON)
+        })
           .then(res => res.json())
           .then(data => {
             var googlePlaces = data.results;
             var googlePlacesLength = googlePlaces.length;
-            googlePlacesResults = formatGoogleResults(googlePlacesResults,bounds,googlePlaces);
+            googlePlacesResults = formatGoogleResults(
+              googlePlacesResults,
+              bounds,
+              googlePlaces
+            );
             paramGoogleJSON.pagetoken = data.next_page_token;
             if (googlePlacesLength === 20) {
-              setTimeout( function() {
-                fetch('/googlesearch', {
-                  method: 'POST',
+              setTimeout(function() {
+                fetch("/googlesearch", {
+                  method: "POST",
                   body: JSON.stringify(paramGoogleJSON)
                 })
-                .then(res1 => res1.json())
-                .then(data1 => {
-                  googlePlaces = data1.results;
-                  googlePlacesResults = formatGoogleResults(googlePlacesResults,bounds,googlePlaces);
-                  paramGoogleJSON.pagetoken = data1.next_page_token;
-                  callback();
-                })
+                  .then(res1 => res1.json())
+                  .then(data1 => {
+                    googlePlaces = data1.results;
+                    googlePlacesResults = formatGoogleResults(
+                      googlePlacesResults,
+                      bounds,
+                      googlePlaces
+                    );
+                    paramGoogleJSON.pagetoken = data1.next_page_token;
+                    callback();
+                  });
               }, 1600);
-            }
-            else {
+            } else {
               callback();
             }
           });
-        },
-        (callback) => {
-          var foundMatch;
-          var bothPlacesResults = [];
-          yelpPlacesResults.forEach((yelpPlace, yindex, yarray) => {
-            foundMatch = false;
-            googlePlacesResults.forEach((googlePlace, gindex, garray) => {
-              if (!foundMatch) {
-                if (placeMatch(googlePlace,yelpPlace)) {
-                  bothPlacesResults.push({
-                    yelp: yelpPlace,
-                    google: googlePlace
-                  });
-                  foundMatch = true;
-                }
+      },
+      callback => {
+        var foundMatch;
+        var bothPlacesResults = [];
+        yelpPlacesResults.forEach((yelpPlace, yindex, yarray) => {
+          foundMatch = false;
+          googlePlacesResults.forEach((googlePlace, gindex, garray) => {
+            if (!foundMatch) {
+              if (placeMatch(googlePlace, yelpPlace)) {
+                bothPlacesResults.push({
+                  yelp: yelpPlace,
+                  google: googlePlace
+                });
+                foundMatch = true;
               }
-            });
+            }
           });
-          var filterState = this.state.filterStatus;
-          var tempPlaceArray = this.filterResults(yelpPlacesResults, googlePlacesResults, bothPlacesResults, filterState);
-          var currentYelpPlaces = tempPlaceArray[0];
-          var currentGooglePlaces = tempPlaceArray[1];
-          tempPlaceArray = this.sortResults(currentYelpPlaces, currentGooglePlaces, this.state.sortStatus);
-          var currentYelpPlaces = tempPlaceArray[0];
-          var currentGooglePlaces = tempPlaceArray[1];
-          this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
+        });
+        var filterState = this.state.filterStatus;
+        var tempPlaceArray = this.filterResults(
+          yelpPlacesResults,
+          googlePlacesResults,
+          bothPlacesResults,
+          filterState
+        );
+        var currentYelpPlaces = tempPlaceArray[0];
+        var currentGooglePlaces = tempPlaceArray[1];
+        tempPlaceArray = this.sortResults(
+          currentYelpPlaces,
+          currentGooglePlaces,
+          this.state.sortStatus
+        );
+        var currentYelpPlaces = tempPlaceArray[0];
+        var currentGooglePlaces = tempPlaceArray[1];
+        this.makeMarkers(currentYelpPlaces, currentGooglePlaces);
 
-
-
-          this.locationBoxEl.value = "";
-          this.loader.classList.remove("loader-activated");
-          this.nonloaderEl.style.opacity = "1";
-          this.loader.style.display = "none";
-          document.getElementById('disablingDiv').style.display='none';
-          if (this.state.sortStatus === 0 && this.state.filterStatus[0] === false && this.state.filterStatus[1] === true && this.state.filterStatus[2] === true && this.state.filterStatus[3] === true) {
-            this.sortBestMatch.classList.add("sort-button-clicked");
-            this.filterPrice1.classList.add("filter-button-clicked");
-            this.filterPrice2.classList.add("filter-button-clicked");
-            this.filterPrice3.classList.add("filter-button-clicked");
-          }
-          this.setState({googlePlacesResults:googlePlacesResults, yelpPlacesResults:yelpPlacesResults, bothPlacesResults:bothPlacesResults, currentYelpPlaces: currentYelpPlaces, currentGooglePlaces:currentGooglePlaces});
-          callback();
+        this.locationBoxEl.value = "";
+        this.loader.classList.remove("loader-activated");
+        this.nonloaderEl.style.opacity = "1";
+        this.loader.style.display = "none";
+        document.getElementById("disablingDiv").style.display = "none";
+        if (
+          this.state.sortStatus === 0 &&
+          this.state.filterStatus[0] === false &&
+          this.state.filterStatus[1] === true &&
+          this.state.filterStatus[2] === true &&
+          this.state.filterStatus[3] === true
+        ) {
+          this.sortBestMatch.classList.add("sort-button-clicked");
+          this.filterPrice1.classList.add("filter-button-clicked");
+          this.filterPrice2.classList.add("filter-button-clicked");
+          this.filterPrice3.classList.add("filter-button-clicked");
         }
+        this.setState({
+          googlePlacesResults: googlePlacesResults,
+          yelpPlacesResults: yelpPlacesResults,
+          bothPlacesResults: bothPlacesResults,
+          currentYelpPlaces: currentYelpPlaces,
+          currentGooglePlaces: currentGooglePlaces
+        });
+        callback();
+      }
     ]);
   }
 
@@ -728,7 +800,7 @@ class App extends Component {
     var map = this.state.map;
     const google = window.google;
     var infoWindow = this.infoWindow;
-    google.maps.event.addListener(newMarker, 'click', function() {
+    google.maps.event.addListener(newMarker, "click", function() {
       infoWindow.setContent(newMarker.content);
       infoWindow.open(map, newMarker);
     });
@@ -755,21 +827,22 @@ class App extends Component {
             title: currentGooglePlaces[i].name,
             position: currentGooglePlaces[i].location,
             icon: this.icons.yeggle.icon,
-            content: '<h3>' + currentGooglePlaces[i].name + '</h3>' +
-            '<p>' + 'Google: ' + currentGooglePlaces[i].rating + '<br>' +
-            'Yelp: ' + currentYelpPlaces[i].rating + '</p>'
+            content:
+              `<h3>${currentGooglePlaces[i].name}</h3>` +
+              `<p>` +
+              `Google: ${currentGooglePlaces[i].rating}<br>` +
+              `Yelp: ${currentYelpPlaces[i].rating}</p>`
           });
           this.addMarkerListener(bothPlaceMarker);
         }
-      }
-      else {
+      } else {
         var onlyGooglePlacesResults = currentGooglePlaces.slice();
         var onlyYelpPlacesResults = currentYelpPlaces.slice();
         currentGooglePlaces.forEach((googlePlace, gindex, garray) => {
           foundMatch = false;
           currentYelpPlaces.forEach((yelpPlace, yindex, yarray) => {
             if (!foundMatch) {
-              if (placeMatch(googlePlace,yelpPlace)) {
+              if (placeMatch(googlePlace, yelpPlace)) {
                 bothPlacesResults.push({
                   google: googlePlace,
                   yelp: yelpPlace
@@ -782,9 +855,11 @@ class App extends Component {
                   title: googlePlace.name,
                   position: googlePlace.location,
                   icon: this.icons.yeggle.icon,
-                  content: '<h3>' + googlePlace.name + '</h3>' +
-                  '<p>' + 'Google: ' + googlePlace.rating + '<br>' +
-                  'Yelp: ' + yelpPlace.rating + '</p>'
+                  content:
+                    `<h3>${googlePlace.name}</h3>` +
+                    `<p>` +
+                    `Google: ${googlePlace.rating}<br>` +
+                    `Yelp: ${yelpPlace.rating}</p>`
                 });
                 this.addMarkerListener(bothPlaceMarker);
               }
@@ -797,14 +872,16 @@ class App extends Component {
               position: googlePlace.location,
               icon: this.icons.google.icon,
               optimized: false,
-              content: '<h3>' + googlePlace.name + '</h3>' +
-              '<p>' + 'Google: ' + googlePlace.rating + '</p>'
+              content:
+                `<h3>${googlePlace.name}</h3>` +
+                `<p>` +
+                `Google: ${googlePlace.rating}</p>`
             });
             this.addMarkerListener(googlePlaceMarker);
           }
         });
-        onlyYelpPlacesResults = onlyYelpPlacesResults.filter((a) => a !== 0);
-        onlyGooglePlacesResults = onlyGooglePlacesResults.filter((a) => a !== 0);
+        onlyYelpPlacesResults = onlyYelpPlacesResults.filter(a => a !== 0);
+        onlyGooglePlacesResults = onlyGooglePlacesResults.filter(a => a !== 0);
         onlyYelpPlacesResults.forEach((yelpPlace, yindex, yarray) => {
           var yelpPlaceMarker = new google.maps.Marker({
             map: map,
@@ -812,8 +889,10 @@ class App extends Component {
             position: yelpPlace.location,
             icon: this.icons.yelp.icon,
             optimized: false,
-            content: '<h3>' + yelpPlace.name + '</h3>' +
-            '<p>' + 'Yelp: ' + yelpPlace.rating + '</p>'
+            content:
+              `<h3>${yelpPlace.name}</h3>` +
+              `<p>` +
+              `Yelp: ${yelpPlace.rating}</p>`
           });
           this.addMarkerListener(yelpPlaceMarker);
         });
@@ -825,54 +904,64 @@ class App extends Component {
     var placesJSX = [];
     var googlePlacesJSX = [];
     var yelpPlacesJSX = [];
-    if (this.state.currentGooglePlaces !== undefined && this.state.currentGooglePlaces!== null) {
+    if (
+      this.state.currentGooglePlaces !== undefined &&
+      this.state.currentGooglePlaces !== null
+    ) {
       var currentGooglePlaces = this.state.currentGooglePlaces;
       var currentYelpPlaces = this.state.currentYelpPlaces;
       var i = 0;
       var googleStars;
-      while (i < Math.max(currentGooglePlaces.length, currentYelpPlaces.length) && i < this.maxLength) {
+      while (
+        i < Math.max(currentGooglePlaces.length, currentYelpPlaces.length) &&
+        i < this.maxLength
+      ) {
         if (i < currentGooglePlaces.length) {
-          if (currentGooglePlaces[i].rating == "" || currentGooglePlaces[i].rating == undefined) {
+          if (
+            currentGooglePlaces[i].rating == "" ||
+            currentGooglePlaces[i].rating == undefined
+          ) {
             googleStars = "";
-          }
-          else {
-            googleStars = currentGooglePlaces[i].rating + ' stars';
+          } else {
+            googleStars = `${currentGooglePlaces[i].rating} stars`;
           }
           googlePlacesJSX.push(
             <div className="item2-right">
-              <h4><a href={currentGooglePlaces[i].url} target="_blank">{currentGooglePlaces[i].name}</a></h4>
+              <h4>
+                <a href={currentGooglePlaces[i].url} target="_blank">
+                  {currentGooglePlaces[i].name}
+                </a>
+              </h4>
               <p>{currentGooglePlaces[i].address}</p>
               <p>{currentGooglePlaces[i].priceLevel}</p>
               <p>{googleStars}</p>
               <p>{currentGooglePlaces[i].currStatus}</p>
             </div>
           );
-        }
-        else {
-          googlePlacesJSX.push(
-            <div className="item2-right-empty"></div>
-          );
+        } else {
+          googlePlacesJSX.push(<div className="item2-right-empty" />);
         }
         if (i < currentYelpPlaces.length) {
           yelpPlacesJSX.push(
             <div className="item2-left">
-              <h4><a href={currentYelpPlaces[i].url} target="_blank">{currentYelpPlaces[i].name}</a></h4>
+              <h4>
+                <a href={currentYelpPlaces[i].url} target="_blank">
+                  {currentYelpPlaces[i].name}
+                </a>
+              </h4>
               <p>{currentYelpPlaces[i].address}</p>
               <p>{currentYelpPlaces[i].priceLevel}</p>
               <p>{currentYelpPlaces[i].rating} stars</p>
               <p>{currentYelpPlaces[i].reviewCount} reviews</p>
             </div>
           );
-        }
-        else {
-          yelpPlacesJSX.push(
-            <div className="item2-left-empty"></div>
-          );
+        } else {
+          yelpPlacesJSX.push(<div className="item2-left-empty" />);
         }
         placesJSX.push(
           <div className="row2">
             {yelpPlacesJSX[i]}
-            <div className="item2-center"></div>
+            <div className="item2-center" />
             {googlePlacesJSX[i]}
           </div>
         );
@@ -881,30 +970,138 @@ class App extends Component {
     }
     return (
       <div className="App">
-        <div id="loader" style={{display:'none'}} ref={(loader) => {this.loader = loader;}}></div>
-        <div ref={(nonloaderEl) => {this.nonloaderEl = nonloaderEl;}}>
+        <div
+          id="loader"
+          style={{ display: "none" }}
+          ref={loader => {
+            this.loader = loader;
+          }}
+        />
+        <div
+          ref={nonloaderEl => {
+            this.nonloaderEl = nonloaderEl;
+          }}
+        >
           <header className="App-header">
             <h1 className="App-title">Welcome to Yeggle</h1>
             <form onSubmit={this.handleSubmit}>
-              <input onClick={this.handleSearchClick} onChange={this.handleChange} onKeyPress={this.handleChange} id="search-box" ref={(searchBoxEl) => {this.searchBoxEl = searchBoxEl;}} placeholder="Search for" />
-              <input placeholder="Near" ref={(locationBoxEl) => {this.locationBoxEl = locationBoxEl;}}/>
-              <input id="submit-button" type="submit"/>
+              <input
+                onClick={this.handleSearchClick}
+                onChange={this.handleChange}
+                onKeyPress={this.handleChange}
+                id="search-box"
+                ref={searchBoxEl => {
+                  this.searchBoxEl = searchBoxEl;
+                }}
+                placeholder="Search for"
+              />
+              <input
+                placeholder="Near"
+                ref={locationBoxEl => {
+                  this.locationBoxEl = locationBoxEl;
+                }}
+              />
+              <input id="submit-button" type="submit" />
             </form>
           </header>
-          <div id="sticky-wrapper" ref={(stickyWrapper) => {this.stickyWrapper = stickyWrapper;}}>
-            <div id="map" ref={(map) => {this.map = map;}}></div>
+          <div
+            id="sticky-wrapper"
+            ref={stickyWrapper => {
+              this.stickyWrapper = stickyWrapper;
+            }}
+          >
+            <div
+              id="map"
+              ref={map => {
+                this.map = map;
+              }}
+            />
             <div id="button-div">
-              <div className="sort-group" ref={(sortGroup) => {this.sortGroup = sortGroup;}}>
-                <button className="sort-button sort-button-clicked" onClick={() => this.handleSortClick(0)} ref={(sortBestMatch) => {this.sortBestMatch = sortBestMatch;}}>Best Match</button>
-                <button className="sort-button" onClick={() => this.handleSortClick(1)} ref={(sortReview) => {this.sortReview = sortReview;}}>Review Count</button>
-                <button className="sort-button" onClick={() => this.handleSortClick(2)} ref={(sortRating) => {this.sortRating = sortRating;}}>Rating</button>
-                <button className="sort-button" onClick={() => this.handleSortClick(3)} ref={(sortDistance) => {this.sortDistance = sortDistance;}}>Distance</button>
+              <div
+                className="sort-group"
+                ref={sortGroup => {
+                  this.sortGroup = sortGroup;
+                }}
+              >
+                <button
+                  className="sort-button sort-button-clicked"
+                  onClick={() => this.handleSortClick(0)}
+                  ref={sortBestMatch => {
+                    this.sortBestMatch = sortBestMatch;
+                  }}
+                >
+                  Best Match
+                </button>
+                <button
+                  className="sort-button"
+                  onClick={() => this.handleSortClick(1)}
+                  ref={sortReview => {
+                    this.sortReview = sortReview;
+                  }}
+                >
+                  Review Count
+                </button>
+                <button
+                  className="sort-button"
+                  onClick={() => this.handleSortClick(2)}
+                  ref={sortRating => {
+                    this.sortRating = sortRating;
+                  }}
+                >
+                  Rating
+                </button>
+                <button
+                  className="sort-button"
+                  onClick={() => this.handleSortClick(3)}
+                  ref={sortDistance => {
+                    this.sortDistance = sortDistance;
+                  }}
+                >
+                  Distance
+                </button>
               </div>
-              <div className="filter-group" ref={(filterGroup) => {this.filterGroup = filterGroup;}}>
-                <button className="filter-button" onClick={() => this.handleFilterClick(0)} ref={(filterYeggle) => {this.filterYeggle = filterYeggle;}}>Yeggle</button>
-                <button className="filter-button filter-button-clicked" onClick={() => this.handleFilterClick(1)} ref={(filterPrice1) => {this.filterPrice1 = filterPrice1;}}>$</button>
-                <button className="filter-button filter-button-clicked" onClick={() => this.handleFilterClick(2)} ref={(filterPrice2) => {this.filterPrice2 = filterPrice2;}}>$$</button>
-                <button className="filter-button filter-button-clicked" onClick={() => this.handleFilterClick(3)} ref={(filterPrice3) => {this.filterPrice3 = filterPrice3;}}>$$$</button>
+              <div
+                className="filter-group"
+                ref={filterGroup => {
+                  this.filterGroup = filterGroup;
+                }}
+              >
+                <button
+                  className="filter-button"
+                  onClick={() => this.handleFilterClick(0)}
+                  ref={filterYeggle => {
+                    this.filterYeggle = filterYeggle;
+                  }}
+                >
+                  Yeggle
+                </button>
+                <button
+                  className="filter-button filter-button-clicked"
+                  onClick={() => this.handleFilterClick(1)}
+                  ref={filterPrice1 => {
+                    this.filterPrice1 = filterPrice1;
+                  }}
+                >
+                  $
+                </button>
+                <button
+                  className="filter-button filter-button-clicked"
+                  onClick={() => this.handleFilterClick(2)}
+                  ref={filterPrice2 => {
+                    this.filterPrice2 = filterPrice2;
+                  }}
+                >
+                  $$
+                </button>
+                <button
+                  className="filter-button filter-button-clicked"
+                  onClick={() => this.handleFilterClick(3)}
+                  ref={filterPrice3 => {
+                    this.filterPrice3 = filterPrice3;
+                  }}
+                >
+                  $$$
+                </button>
               </div>
             </div>
             <div className="grid1">
@@ -912,17 +1109,19 @@ class App extends Component {
                 <div className="item1-left">
                   <h3>Yelp</h3>
                 </div>
-                <div className="item1-center"></div>
+                <div className="item1-center" />
                 <div className="item1-right">
                   <h3>Google</h3>
                 </div>
               </div>
             </div>
           </div>
-          <div ref={(placeHolder) => {this.placeHolder = placeHolder;}}></div>
-          <div className="grid2">
-            {placesJSX}
-          </div>
+          <div
+            ref={placeHolder => {
+              this.placeHolder = placeHolder;
+            }}
+          />
+          <div className="grid2">{placesJSX}</div>
         </div>
       </div>
     );
